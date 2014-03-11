@@ -1,0 +1,107 @@
+#format: sh
+#
+#  Configuration for fearload
+#
+#  This file sets up environment variables that are needed for a 
+#  Feature Relationship load
+#
+###########################################################################
+
+#
+#  If the MGICONFIG environment variable does not have a local override,
+#  use the default "live" settings.
+#
+if [ "${MGICONFIG}" = "" ]
+then
+    MGICONFIG=/usr/local/mgi/live/mgiconfig
+    export MGICONFIG
+fi
+
+CONFIG_MASTER=${MGICONFIG}/master.config.sh
+
+export CONFIG_MASTER
+
+. ${CONFIG_MASTER}
+
+# Full path the the logs, reports, and archive directories 
+FILEDIR=${DATALOADSOUTPUT}/mgi/fearload
+
+# Full path to the input, output, logs, reports and archive directories.
+INPUTDIR=${FILEDIR}/input
+LOGDIR=${FILEDIR}/logs
+RPTDIR=${FILEDIR}/reports
+OUTPUTDIR=${FILEDIR}/output
+ARCHIVEDIR=${FILEDIR}/archive
+
+export INPUTDIR FILEDIR LOGDIR RPTDIR OUTPUTDIR ARCHIVEDIR
+
+# Full path name of the input file
+INPUT_FILE_DEFAULT="${INPUTDIR}/fearload.txt"
+
+export INPUT_FILE_DEFAULT
+
+# Full path name of the BCP files
+RELATIONSHIP_BCP=${OUTPUTDIR}/MGI_Relationship.bcp
+PROPERTY_BCP=${OUTPUTDIR}/MGI_Relationship_Property.bcp
+
+export RELATIONSHIP_BCP PROPERTY_BCP
+
+# Full path to the sanity/QC reports.
+#
+SANITY_RPT=${RPTDIR}/sanity.rpt
+
+export SANITY_RPT 
+
+# Number of columns expected for the input file (for sanity check).
+#
+FILE_COLUMNS=14
+
+export FILE_COLUMNS
+
+# keys for Lookups
+RELATIONSHIP_VOCAB_KEY=96
+QUALIFIER_VOCAB_KEY=94
+EVIDENCE_VOCAB_KEY=95
+
+export RELATIONSHIP_VOCAB_KEY QUALIFIER_VOCAB_KEY EVIDENCE_VOCAB_KEY
+
+# Full path to QC/sanity scripts.
+#
+LOAD_QC=${FEARLOAD}/bin/fearQC.py
+LOAD_QC_SH=${FEARLOAD}/bin/fearQC.sh
+
+export LOAD_QC LOAD_QC_SH
+
+#  Full path name of the log files
+LOG_PROC=${LOGDIR}/fearload.proc.log
+LOG_DIAG=${LOGDIR}/fearload.diag.log
+LOG_CUR=${LOGDIR}/fearload.cur.log
+LOG_VAL=${LOGDIR}/fearload.val.log
+
+export LOG_PROC LOG_DIAG LOG_CUR LOG_VAL
+
+# this load's login value for jobstream 
+JOBSTREAM=fearload
+
+export JOBSTREAM
+
+# add or delete_reload
+LOAD_MODE=delete_reload
+
+export LOAD_MODE
+
+###########################################################################
+#  The name of the load for the subject of an email notification
+# will be set by wrapper based on collection for each load
+MAIL_LOADNAME="Feature Relationship Load"
+
+#  Recipient list for mailing the curation log file (comma-separated)
+MAIL_LOG_CUR=""
+
+export MAIL_LOADNAME MAIL_LOG_CUR
+
+#  INSTALLDIR expected by dlautils/DLAInstall
+INSTALLDIR=${FEARLOAD}
+
+export INSTALLDIR
+
