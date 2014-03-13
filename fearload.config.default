@@ -49,14 +49,25 @@ export RELATIONSHIP_BCP PROPERTY_BCP
 # Full path to the sanity/QC reports.
 #
 SANITY_RPT=${RPTDIR}/sanity.rpt
+QC_LOGFILE=${LOGDIR}/fearQC.log
 
-export SANITY_RPT 
+export SANITY_RPT QC_LOGFILE
+
+
+#
+# For sanity checks
+#
 
 # Number of columns expected for the input file (for sanity check).
-#
-FILE_COLUMNS=14
+NUM_COLUMNS=14
 
-export FILE_COLUMNS
+# list of required columns
+REQUIRED_COLUMNS="1,2,3,5,7,9,10,11,12"  
+
+# minimum # lines in input (including header)
+MIN_LINES=2
+
+export NUM_COLUMNS REQUIRED_COLUMNS MIN_LINES
 
 # keys for Lookups
 RELATIONSHIP_VOCAB_KEY=96

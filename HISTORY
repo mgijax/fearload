@@ -1,5 +1,16 @@
-TAG: mrkcoordload-5-1-7-1
+TAG: fearload-5-1-7-2
 DATE: 03/11/2014
 STAFF: sc
 CHANGES: TR11560 Feature Relationships project
+1) Sanity Checks (File Integrity Checks) implemented
+a) runFearQC
+b) fearQC.sh 
+c) checkColumns.py
+2) HISTORY -added config for sanity checks
+a) NUM_COLUMNS, REQUIRED_COLUMNS, MIN_LINES
 
+TAG: fearload-5-1-7-1
+DATE: 03/11/2014
+STAFF: sc
+CHANGES: TR11560 Feature Relationships project
+1) basic loader implemented
