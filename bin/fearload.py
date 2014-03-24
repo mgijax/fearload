@@ -308,7 +308,7 @@ def createFiles( ):
 	    c = categoryDict[cat]
 	    catKey = c.key
 	else:
-	    print 'category not found in line ' % line
+	    print 'category not found in line %s' % line
 	    continue
 	if markerDict.has_key(obj1Id):
 	    objKey1 = markerDict[obj1Id]
