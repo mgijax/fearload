@@ -302,50 +302,55 @@ def createFiles( ):
     # remove the header line
     fpInFile.readline()
     for line in fpInFile.readlines():
-	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, prop, note) = string.split(line, TAB)
+	# added quick cleanup to remove leading & trailing spaces from fields
+
+	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, prop, note) = map(string.strip, string.split(line, TAB))
 	#print '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s' % (action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, prop, note)
+
+	# added more info to line-by-line debugging
+
 	if categoryDict.has_key(cat):
 	    c = categoryDict[cat]
 	    catKey = c.key
 	else:
-	    print 'category not found in line %s' % line
+	    print 'category (%s) not found in line ' % (cat, line)
 	    continue
 	if markerDict.has_key(obj1Id):
 	    objKey1 = markerDict[obj1Id]
 	else:
-	    print 'marker1 not found in line %s' % line
+	    print 'marker1 (%s) not found in line %s' % (obj1Id, line)
 	    continue
 	if markerDict.has_key(obj2Id):
 	    objKey2 = markerDict[obj2Id]
 	else:
-	    print 'marker2 not found in line %s' % line
+	    print 'marker2 (%s) not found in line %s' % (obj2Id, line)
 	    continue
 	if relationshipDict.has_key(relId):
 	    relKey = relationshipDict[relId]
 	else:
-	    print 'relationship id not found in line %s' % line
+	    print 'relationship id (%s) not found in line %s' % (relId, line)
 	    continue
 	if qual == '':
 	    qual = defaultQual
 	if qualifierDict.has_key(qual):
 	    qualKey = qualifierDict[qual]
 	else:
-	    print 'qualifier not found in line %s' % line
+	    print 'qualifier (%s) not found in line %s' % (qual, line)
 	    continue
 	if evidenceDict.has_key(evid):
 	    evidKey = evidenceDict[evid]
 	else:
-	    print 'evidence not found in line %s' % line
+	    print 'evidence (%s) not found in line %s' % (evid, line)
 	    continue
 	if jNumDict.has_key(jNum):
 	    refsKey = jNumDict[jNum]
 	else:
-	    print 'jNum not found in line %s' % line
+	    print 'jNum (%s) not found in line %s' % (jNum, line)
 	    continue
 	if userDict.has_key(creator):
 	    userKey = userDict[creator]
 	else:
-	    print 'User not found in line %s' % line
+	    print 'User (%s) not found in line %s' % (creator, line)
 	    continue
 
 	# create bcp line
