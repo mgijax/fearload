@@ -7,6 +7,9 @@
 #
 #      Validate input and create feature relationships bcp file
 #
+#  Usage:
+#
+#      fearload.py 
 #
 #  Inputs:
 #
@@ -73,6 +76,7 @@ import mgi_utils
 TAB = '\t'
 CRT = '\n'
 DATE = mgi_utils.date("%m/%d/%Y")
+USAGE='fearload.py'
 
 #
 #  GLOBALS
@@ -140,7 +144,7 @@ def init():
     #  creates files in the file system, creates connection to a database
 
     global nextRelationshipKey, nextPropertyKey, categoryDict, relationshipDict
-    global qualifierDict, evidenceDict, jNumDict, userDict
+    global qualifierDict, evidenceDict, jNumDict, userDict, markerDict
     openFiles()
     #
     # create database connection
@@ -211,7 +215,7 @@ def init():
     for r in results:
         evidenceDict[r['abbreviation']] = r['_Term_key']
 
-    
+    # Reference lookup
     results = db.sql('''select a.accid, a._Object_key
         from ACC_Accession a
         where a._MGIType_key = 1
@@ -222,7 +226,7 @@ def init():
     for r in results:
         jNumDict[r['accid']] = r['_Object_key']
 
-
+    # marker lookup
     results = db.sql('''select a.accid, a._Object_key
         from ACC_Accession a
         where a._MGIType_key = 2

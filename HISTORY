@@ -5,6 +5,10 @@ CHANGES: TR11560 - US10 fearload initial sanity/QC
 1) fearQC.sh - added create/drop of a tempdb table
 2) fearQC.py - added to run QC reports specified in US10
 3) fearload.py - make markerDict global, add usage
+4) fearload.config.default - added:
+* QC_RPT
+* MGI_ID_TEMP_TABLE
+* MGI_ID_BCP
 
 TAG: fearload-5-1-7-3
 TAG: fearload-5-1-7-2

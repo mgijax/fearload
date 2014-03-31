@@ -101,6 +101,7 @@ fi
 if [ ${LIVE_RUN} -eq 0 ]
 then
 	SANITY_RPT=${CURRENTDIR}/`basename ${SANITY_RPT}`
+	QC_RPT=${CURRENTDIR}/`basename ${QC_RPT}`
 	QC_LOGFILE=${CURRENTDIR}/`basename ${QC_LOGFILE}`
 
 fi
@@ -202,7 +203,7 @@ checkActionValues ()
     REPORT=$2  # The sanity report to write to
 
     echo "\n\nInvalid 'Action' Value(s) in File" >> ${REPORT}
-    echo "---------------" >> ${REPORT}
+    echo "-----------------------------------" >> ${REPORT}
 
     # extract uniq values from the action column eliminating the header line and
     # converting to lower case
@@ -223,6 +224,8 @@ checkActionValues ()
 	    echo $i >> ${REPORT}
 	fi
     done
+
+    return $error
 }
 
 echo "" >> ${LOG}
@@ -267,25 +270,84 @@ fi
 if [ ${SANITY_ERROR} -ne 0 ]
 then
     echo "Sanity errors detected. See ${SANITY_RPT}" | tee -a ${LOG}
+    exit 1
 fi
 
-#${FEARLOAD}/bin/fearQC.py ${INPUT_FILE}
-#STAT=$?
-#if [ ${STAT} -eq 1 ]
-#then
-#    echo "Fatal initialization error. See ${SANITY_RPT}\n" | tee -a ${LOG}
-#    exit ${STAT}
-#fi
+#
+# Create temp tables for the input data.
+#
+echo "" >> ${LOG}
+date >> ${LOG}
+echo "Create temp tables for the input data" >> ${LOG}
+cat - <<EOSQL | isql -S${MGD_DBSERVER} -D${MGD_DBNAME} -U${MGI_PUBLICUSER} -P`cat ${MGI_PUBPASSWORDFILE}` -e  >> ${LOG}
 
-#if [ ${STAT} -eq 3 ]
-#then
-#    echo "Fatal sanity errors detected. See ${SANITY_RPT}\n" | tee -a ${LOG}
-#else
-#    echo "No fatal sanity errors detected."
-#fi
+use tempdb
+go
+
+create table ${MGI_ID_TEMP_TABLE} (
+    mgiID1 varchar(80) not null,
+    mgiID2 varchar(80) not null,
+    category varchar(255) not null
+)
+go
+
+create index idx1 on ${MGI_ID_TEMP_TABLE} (mgiID1)
+go
+
+create index idx2 on ${MGI_ID_TEMP_TABLE} (mgiID2)
+go
+
+create index idx3 on ${MGI_ID_TEMP_TABLE} (category)
+go
+
+grant all on  ${MGI_ID_TEMP_TABLE} to public
+go
+
+quit
+EOSQL
+
+date >> ${LOG}
+
+#
+# Generate the QC reports.
+#
+echo "" >> ${LOG}
+date >> ${LOG}
+echo "Generate the QC reports" >> ${LOG}
+{ ${FEARLOAD}/bin/fearQC.py ${INPUT_FILE} 2>&1; echo $? > ${TMP_FILE}; } >> ${LOG}
+
+if [ `cat ${TMP_FILE}` -eq 1 ]
+then
+    echo "An error occurred while generating the QC reports"
+    echo "See log file (${LOG})"
+    RC=1
+elif [ `cat ${TMP_FILE}` -eq 2 ]
+then
+    echo "QC errors detected. See ${QC_RPT} " | tee -a ${LOG}
+else
+    echo "No QC errors detected"
+    RC=0
+fi
+
+#
+# Drop the temp tables.
+#
+echo "" >> ${LOG}
+date >> ${LOG}
+echo "Drop the temp tables" >> ${LOG}
+cat - <<EOSQL | isql -S${MGD_DBSERVER} -D${MGD_DBNAME} -U${MGI_PUBLICUSER} -P`cat ${MGI_PUBPASSWORDFILE}` -e  >> ${LOG}
+
+use tempdb
+go
+
+drop table ${MGI_ID_TEMP_TABLE}
+go
+
+quit 
+EOSQL
 
 echo "" >> ${LOG}
 date >> ${LOG}
-echo "Finished running sanity checks on the input file" >> ${LOG}
+echo "Finished running QC checks on the input file" >> ${LOG}
 
-exit 0
+exit ${RC}
