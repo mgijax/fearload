@@ -1,3 +1,9 @@
+TAG: fearload-5-1-7-5
+DATE: 04/01/2014
+STAFF: sc
+CHANGES: TR11560 - US10 fearload initial sanity/QC
+1) Install - added deployment of runFearQC
+
 TAG: fearload-5-1-7-4
 DATE: 03/31/2014
 STAFF: sc

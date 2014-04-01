@@ -128,24 +128,24 @@ if [ ! -d ${DEPLOY_PATH} ]; then
 	exit 0
 fi
 
-#if [ -d ${DEPLOY_PATH} ]; then
+if [ -d ${DEPLOY_PATH} ]; then
 	# copy files, change permissions, and check for errors
 	# deployment errors are non-fatal, as they can occur regularly in an
 	# SE's development area
 
-#	for file in runFearQC publishFearFile
-#	do
-#		cp bin/${file} ${DEPLOY_PATH}
-#		if [ $? -ne 0 ]; then
-#			echo "Warning: Failed to copy ${file} to ${DEPLOY_PATH}"
-#		fi
-#
-#		chmod 755 ${DEPLOY_PATH}/${file}
-#		if [ $? -ne 0 ]; then
-#			echo "Warning: Failed to change permissions on ${DEPLOY_PATH}/${file}"
-#		fi
-#	done
-#	echo "Deployed curator files to ${DEPLOY_PATH}"
-#fi
+	for file in runFearQC #publishFearFile
+	do
+		cp bin/${file} ${DEPLOY_PATH}
+		if [ $? -ne 0 ]; then
+			echo "Warning: Failed to copy ${file} to ${DEPLOY_PATH}"
+		fi
+
+		chmod 755 ${DEPLOY_PATH}/${file}
+		if [ $? -ne 0 ]; then
+			echo "Warning: Failed to change permissions on ${DEPLOY_PATH}/${file}"
+		fi
+	done
+	echo "Deployed curator files to ${DEPLOY_PATH}"
+fi
 exit 0
 
