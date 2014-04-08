@@ -154,7 +154,7 @@ def init ():
     results = db.sql('''select name, _Category_key, _RelationshipVocab_key, _RelationshipDAG_key, _MGIType_key_1, _MGIType_key_2
 	from MGI_Relationship_Category''', 'auto')
     for r in results:
-        categoryDict[r['name']] = r
+        categoryDict[r['name'].lower()] = r
 
     # FeaR vocab lookup
     #print 'FeaR vocab lookup %s' % mgi_utils.date()
@@ -169,7 +169,7 @@ def init ():
 	and dn._DAG_key between 44 and 47
 	and dn._DAG_key = vd._DAG_Key''', 'auto')
     for r in results:
-        relationshipDict[r['accid']] = r
+        relationshipDict[r['accid'].lower()] = r
 
     # FeaR qualifier lookup
     #print 'qualifier lookup %s' % mgi_utils.date()
@@ -178,7 +178,7 @@ def init ():
         where _Vocab_key = 94
         and isObsolete = 0''', 'auto')
     for r in results:
-        qualifierDict[r['term']] = r['_Term_key']
+        qualifierDict[r['term'].lower()] = r['_Term_key']
 
     # FeaR evidence lookup
     #print 'evidence lookup %s' % mgi_utils.date()
@@ -187,7 +187,7 @@ def init ():
         where _Vocab_key = 95
         and isObsolete = 0''', 'auto')
     for r in results:
-        evidenceDict[r['abbreviation']] = r['_Term_key']
+        evidenceDict[r['abbreviation'].lower()] = r['_Term_key']
 
     # Reference lookup
     #print 'reference lookup %s' % mgi_utils.date()
@@ -199,7 +199,7 @@ def init ():
         and a.private = 0
         and a.prefixPart = 'J:' ''', 'auto')
     for r in results:
-        jNumDict[r['accid']] = r['_Object_key']
+        jNumDict[r['accid'].lower()] = r['_Object_key']
 
     # marker lookup
     #print 'marker lookup %s' % mgi_utils.date()
@@ -210,7 +210,7 @@ def init ():
         and a.preferred = 1
         and a.private = 0''', 'auto')
     for r in results:
-        markerDict[r['accid']] = r['_Object_key']
+        markerDict[r['accid'].lower()] = r['_Object_key']
 
     # active status (not data load or inactive)
     #print 'creator lookup %s' % mgi_utils.date()
@@ -218,7 +218,7 @@ def init ():
         from MGI_User
         where _UserStatus_key = 316350''', 'auto')
     for r in results:
-        userDict[r['login']] = r['_User_key']
+        userDict[r['login'].lower()] = r['_User_key']
 
     # for MGI ID verification
     loadTempTables()
@@ -305,7 +305,7 @@ def qcMarkerIds():
                 and m._Marker_Status_key not in (1,3)
                 and m._Marker_Status_key = ms._Marker_Status_key 
                 order by tmp.mgiID1''' % (idTempTable, idTempTable, idTempTable)
-    print cmds
+    #print cmds
     results1 = db.sql(cmds, 'auto')
 
     cmds = '''select tmp.mgiID2, null "name", null "status"
@@ -337,10 +337,10 @@ def qcMarkerIds():
                 and m._Marker_Status_key not in (1,3)
                 and m._Marker_Status_key = ms._Marker_Status_key
                 order by tmp.mgiID2''' % (idTempTable, idTempTable, idTempTable)
-    print cmds
+    #print cmds
     results2 = db.sql(cmds, 'auto')
 
-    if len(results2) >0 or len(results2) >0:
+    if len(results1) >0 or len(results2) >0:
 	hasQcErrors = 1
 	fpQcRpt.write(string.center('Invalid Markers',80) + CRT)
 	fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
@@ -354,7 +354,7 @@ def qcMarkerIds():
     # Write MGI ID1 records to the report.
     #
     for r in results1:
-        print r
+        #print r
         mgiID = r['mgiID1']
         objectType = r['name']
         markerStatus = r['status']
@@ -378,7 +378,7 @@ def qcMarkerIds():
     # Write MGI ID2 records to the report.
     #
     for r in results2:
-        print r
+        #print r
         mgiID = r['mgiID2']
         objectType = r['name']
         markerStatus = r['status']
@@ -442,37 +442,38 @@ def runQcChecks ():
     lineCt = 2
     while line:
 	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, prop, note) = map(string.strip, string.split(line, TAB))
-	print 'cat: "%s"' % cat
-	if not categoryDict.has_key(cat):
+	#print 'qual: "%s"' % qual
+	if not categoryDict.has_key(cat.lower()):
 	    hasQcErrors = 1
 	    categoryList.append('%-12s  %-20s%s' % (lineCt, cat, CRT))
 	    line = fpInput.readline()
 	    lineCt += 1
             continue
         else:
-	    cDict = categoryDict[cat]
-
-	if not qualifierDict.has_key(qual):
+	    cDict = categoryDict[cat.lower()]
+	if qual == '':
+	    qual = 'Not Specified'
+	if not qualifierDict.has_key(qual.lower()):
 	    hasQcErrors = 1
 	    qualifierList.append('%-12s  %-20s' % (lineCt, qual))
-	if not evidenceDict.has_key(evid):
+	if not evidenceDict.has_key(evid.lower()):
 	    hasQcErrors = 1
 	    evidenceList.append('%-12s  %-20s' % (lineCt, evid))
-	if not jNumDict.has_key(jNum):
+	if not jNumDict.has_key(jNum.lower()):
 	    hasQcErrors = 1
 	    jNumList.append('%-12s  %-20s' % (lineCt, jNum))
-	if not userDict.has_key(creator):
+	if not userDict.has_key(creator.lower()):
 	    hasQcErrors = 1
 	    userList.append('%-12s  %-20s' % (lineCt, creator))
-	if not relationshipDict.has_key(relId):
+	if not relationshipDict.has_key(relId.lower()):
 	    hasQcErrors = 1
 	    relIdList.append('%-12s  %-20s' % (lineCt, relId))
 	else:
-	    relDict = relationshipDict[relId]
+	    relDict = relationshipDict[relId.lower()]
 	    if relDict['isObsolete'] != 0:
 		hasQcErrors = 1
 		obsRelIdList.append('%-12s  %-20s' % (lineCt, relId))
-	    print 'Incoming vocab key: %s Category vocab key: %s' % (relDict['_Vocab_key'], cDict['_RelationshipVocab_key'])
+	    #print 'Incoming vocab key: %s Category vocab key: %s' % (relDict['_Vocab_key'], cDict['_RelationshipVocab_key'])
 	    if relDict['_Vocab_key'] != cDict['_RelationshipVocab_key']:
 		hasQcErrors = 1
 		relVocabList.append('%-12s  %-20s' % (lineCt, relId))

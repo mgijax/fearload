@@ -1,3 +1,12 @@
+TAG: fearload-5-1-7-7
+DATE: 04/08/2014
+STAFF: sc
+CHANGES: TR11560 - US10 fearload
+1) Qual QC check bug - replace empty qual column with 'Not Specified'
+2) Organizer ID check bug - Only Participant ID being check because of typo
+3) Do case insensitive checks
+4) commented out some debug
+
 TAG: fearload-5-1-7-6
 TAG: fearload-5-1-7-5
 DATE: 04/01/2014
@@ -33,4 +42,4 @@ TAG: fearload-5-1-7-1
 DATE: 03/11/2014
 STAFF: sc
 CHANGES: TR11560 Feature Relationships project
-1) basic loader implemented
+
