@@ -19,7 +19,7 @@ usage ()
     exit 1
 }
 
-LOADDIR=/usr/local/mgi/live/dataload/fearload
+LOADDIR=/usr/local/mgi/scrum-bob/dataload/fearload
 
 WRAPPER=${LOADDIR}/bin/fearQC.sh
 
