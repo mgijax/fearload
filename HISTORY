@@ -1,3 +1,13 @@
+TAG: fearload-5-1-7-8
+DATE: 04/08/2014
+STAFF: sc
+CHANGES: TR11560 - US10 fearload
+1) fearQC.py
+a) Added secondary MGI ID check, which was overlooked
+b) Added some comments 
+c) Non-MGI ID passing check bug
+d) timing for performance debug which goes to fearQC.log
+
 TAG: fearload-5-1-7-7
 DATE: 04/08/2014
 STAFF: sc

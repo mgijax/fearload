@@ -50,7 +50,8 @@ import string
 import re
 import mgi_utils
 import db
-import Set
+import time
+
 #
 #  CONSTANTS
 #
@@ -88,12 +89,14 @@ evidenceDict = {}
 # reference ID (JNum) lookup {term:key, ...}
 jNumDict = {}
 
-# marker lookup {mgiID:key, ...)
-markerDict = {}
-
 # MGI_User lookup {userLogin:key, ...}
 userDict = {}
 
+# proper MGI ID prefix excluding ':', in lowercase
+prefix = 'mgi'
+
+# IDs w/o proper MGI ID prefix
+badIdList = []
 #
 # Purpose: Validate the arguments to the script.
 # Returns: Nothing
@@ -201,17 +204,6 @@ def init ():
     for r in results:
         jNumDict[r['accid'].lower()] = r['_Object_key']
 
-    # marker lookup
-    #print 'marker lookup %s' % mgi_utils.date()
-    results = db.sql('''select a.accid, a._Object_key
-        from ACC_Accession a
-        where a._MGIType_key = 2
-        and a._LogicalDB_key = 1
-        and a.preferred = 1
-        and a.private = 0''', 'auto')
-    for r in results:
-        markerDict[r['accid'].lower()] = r['_Object_key']
-
     # active status (not data load or inactive)
     #print 'creator lookup %s' % mgi_utils.date()
     results = db.sql('''select login, _User_key
@@ -268,13 +260,13 @@ def openFiles ():
 #
 
 def qcMarkerIds():
-    global hasQcErrors
-    #
+    global hasQcErrors, badIdList 
+
     # Find any MGI IDs from the relationship file that:
     # 1) Do not exist in the database.
     # 2) Exist for a non-marker object.
     # 3) Exist for a marker, but the status is not "offical" or "interim".
-    #
+    # 4) Are secondary
 
     cmds = '''select tmp.mgiID1, null "name", null "status"
 		from tempdb..%s tmp
@@ -339,7 +331,47 @@ def qcMarkerIds():
                 order by tmp.mgiID2''' % (idTempTable, idTempTable, idTempTable)
     #print cmds
     results2 = db.sql(cmds, 'auto')
+   
+    cmds = '''select tmp.mgiID1, 
+                       m.symbol, 
+                       a2.accID 
+                from tempdb..%s tmp,
+                     ACC_Accession a1,
+                     ACC_Accession a2,
+                     MRK_Marker m
+                where tmp.mgiID1 = a1.accID 
+                      and a1._MGIType_key = 2
+                      and a1._LogicalDB_key = 1 
+                      and a1.preferred = 0 
+                      and a1._Object_key = a2._Object_key
+                      and a2._MGIType_key = 2 
+                      and a2._LogicalDB_key = 1
+                      and a2.preferred = 1 
+                      and a2._Object_key = m._Marker_key 
+                order by tmp.mgiID1''' % idTempTable
 
+    results3 = db.sql(cmds, 'auto')
+
+    cmds = '''select tmp.mgiID2,
+                       m.symbol,
+                       a2.accID
+                from tempdb..%s tmp,
+                     ACC_Accession a1,
+                     ACC_Accession a2,
+                     MRK_Marker m
+                where tmp.mgiID2 = a1.accID
+                      and a1._MGIType_key = 2 
+                      and a1._LogicalDB_key = 1
+                      and a1.preferred = 0 
+                      and a1._Object_key = a2._Object_key
+                      and a2._MGIType_key = 2 
+                      and a2._LogicalDB_key = 1 
+                      and a2.preferred = 1
+                      and a2._Object_key = m._Marker_key
+                order by tmp.mgiID1''' % idTempTable
+
+    results4 = db.sql(cmds, 'auto')
+    
     if len(results1) >0 or len(results2) >0:
 	hasQcErrors = 1
 	fpQcRpt.write(string.center('Invalid Markers',80) + CRT)
@@ -349,13 +381,12 @@ def qcMarkerIds():
 	fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + \
 	      20*'-' + '  ' + 30*'-' + CRT)
 
-
     #
     # Write MGI ID1 records to the report.
     #
     for r in results1:
         #print r
-        mgiID = r['mgiID1']
+        organizer = r['mgiID1']
         objectType = r['name']
         markerStatus = r['status']
 
@@ -365,21 +396,35 @@ def qcMarkerIds():
             markerStatus = ''
 
         if objectType == '':
-            reason = 'MGI ID1 does not exist'
+            reason = 'Organizer does not exist'
         elif markerStatus == '':
-            reason = 'MGI ID1 exists for non-marker'
+            reason = 'Organizer exists for non-marker'
         else:
-            reason = 'MGI ID1 marker status is invalid'
+            reason = 'Organizer	marker status is invalid'
 
         fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
-            (mgiID, objectType, markerStatus, reason, CRT))
+            (organizer, objectType, markerStatus, reason, CRT))
+
+        # check for bad MGI ID for organizer
+        goodID = 1
+        if string.find(organizer, ':') == -1:
+                goodID = 0
+        else:
+            oPrefix = string.split(organizer, ':')[0]
+            if oPrefix.lower() !=  prefix:
+                goodID = 0
+        if not(goodID):
+            if not goodID:
+                hasQcErrors = 1
+                badIdList.append('%-12s  %-20s%s' % (organizer, 'Organizer', CRT
+))
 
     #
     # Write MGI ID2 records to the report.
     #
     for r in results2:
         #print r
-        mgiID = r['mgiID2']
+        participant = r['mgiID2']
         objectType = r['name']
         markerStatus = r['status']
 
@@ -389,15 +434,65 @@ def qcMarkerIds():
             markerStatus = ''
 
         if objectType == '':
-            reason = 'MGI ID2 does not exist'
+            reason = 'Participant does not exist'
         elif markerStatus == '':
-            reason = 'MGI ID2 exists for non-marker'
+            reason = 'Participant exists for non-marker'
         else:
-            reason = 'MGI ID2 marker status is invalid'
+            reason = 'Participant marker status is invalid'
 
 	fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
-            (mgiID, objectType, markerStatus, reason, CRT))
-	
+            (participant, objectType, markerStatus, reason, CRT))
+
+        # check for bad MGI ID for participant
+        goodID = 1
+        if string.find(participant, ':') == -1:
+                goodID = 0
+        else:
+            pPrefix = string.split(participant, ':')[0]
+            if pPrefix.lower() !=  prefix:
+                goodID = 0
+        if not(goodID):
+            if not goodID:
+                hasQcErrors = 1
+                badIdList.append('%-12s  %-20s%s' % (participant, 'Participant', CRT))
+
+    #
+    # Write bad MGI IDs to report
+    #
+    if len(badIdList):
+        fpQcRpt.write(CRT + CRT + string.center('Invalid MGI IDs',40) + CRT)
+        fpQcRpt.write('%-15s  %-25s%s' %
+             ('MGI ID','Organizer or Participant?', CRT))
+        fpQcRpt.write(15*'-' + '  ' + 25*'-' + CRT)
+        fpQcRpt.write(string.join(badIdList, CRT))
+
+    if len(results3) >0 or len(results4) >0:
+        hasQcErrors = 1
+        fpQcRpt.write(CRT + CRT + string.center('Secondary MGI IDs',80) + CRT)
+        fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
+             ('2ndary MGI ID','Symbol',
+              'Primary MGI ID','Organizer or Participant?',CRT))
+        fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + \
+              20*'-' + '  ' + 28*'-' + CRT)
+
+	# report Organizer discrepancies
+	for r in results3:
+	    sMgiID = r['mgiID1']
+	    symbol = r['symbol']
+	    pMgiID = r['accID']
+	    which = 'Organizer'
+	    fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
+		(sMgiID, symbol, pMgiID, which,  CRT))
+	# report Participant discrepancies
+	for r in results4:
+	    sMgiID = r['mgiID2']
+	    symbol = r['symbol']
+	    pMgiID = r['accID']
+	    which = 'Participant'
+	    fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
+		(sMgiID, symbol, pMgiID, which,  CRT))
+
+
 #
 # Purpose: run the QC checks
 # Returns: Nothing
@@ -442,48 +537,76 @@ def runQcChecks ():
     lineCt = 2
     while line:
 	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, prop, note) = map(string.strip, string.split(line, TAB))
-	#print 'qual: "%s"' % qual
+
+	# is the category value valid?
 	if not categoryDict.has_key(cat.lower()):
 	    hasQcErrors = 1
 	    categoryList.append('%-12s  %-20s%s' % (lineCt, cat, CRT))
+
+	    # if we don't know the category, we can't do all the QC checks
+	    # so continue to next line
 	    line = fpInput.readline()
 	    lineCt += 1
             continue
         else:
 	    cDict = categoryDict[cat.lower()]
+
+	# default value when qual column empty is 'Not Specified'
 	if qual == '':
 	    qual = 'Not Specified'
+
+	# is the qualifier value valid?
 	if not qualifierDict.has_key(qual.lower()):
 	    hasQcErrors = 1
 	    qualifierList.append('%-12s  %-20s' % (lineCt, qual))
+
+	# is the evidence value valid?
 	if not evidenceDict.has_key(evid.lower()):
 	    hasQcErrors = 1
 	    evidenceList.append('%-12s  %-20s' % (lineCt, evid))
+
+	# is the J Number valid?
 	if not jNumDict.has_key(jNum.lower()):
 	    hasQcErrors = 1
 	    jNumList.append('%-12s  %-20s' % (lineCt, jNum))
+
+	# is the user login valid?
 	if not userDict.has_key(creator.lower()):
 	    hasQcErrors = 1
 	    userList.append('%-12s  %-20s' % (lineCt, creator))
+
+	# is the relationship ID valid?
 	if not relationshipDict.has_key(relId.lower()):
 	    hasQcErrors = 1
 	    relIdList.append('%-12s  %-20s' % (lineCt, relId))
 	else:
 	    relDict = relationshipDict[relId.lower()]
+	
+	    # is the relationship term obsolete?	
 	    if relDict['isObsolete'] != 0:
 		hasQcErrors = 1
 		obsRelIdList.append('%-12s  %-20s' % (lineCt, relId))
 	    #print 'Incoming vocab key: %s Category vocab key: %s' % (relDict['_Vocab_key'], cDict['_RelationshipVocab_key'])
+	    #print 'Rel vocab key: %s, cat vocab key %s' % (relDict['_Vocab_key'], cDict['_RelationshipVocab_key'])
+
+	    # is the relationship vocab different than the category vocab?
+	    # NOTE: since we are only using one vocab at this time, this
+	    # can never happen, leaving the code in for the future
 	    if relDict['_Vocab_key'] != cDict['_RelationshipVocab_key']:
 		hasQcErrors = 1
 		relVocabList.append('%-12s  %-20s' % (lineCt, relId))
+
+	    # is the relationship DAG different than the category DAG?
 	    if relDict['_DAG_key'] != cDict['_RelationshipDAG_key']:
 		hasQcErrors = 1
 		relDagList.append('%-12s  %-20s' % (lineCt, relId))
 	line = fpInput.readline()
 	lineCt += 1
 
+    # do the marker ID checks - this function writes any errors to the report
     qcMarkerIds()
+
+    # write remaining errors to the report
     if len(categoryList):
 	fpQcRpt.write(CRT + CRT + string.center('Invalid Categories',60) + CRT)
         fpQcRpt.write('%-12s  %-20s%s' %
@@ -609,10 +732,22 @@ def loadTempTables ():
 #
 # Main
 #
+print 'checkArgs(): %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
 checkArgs()
+
+print 'init(): %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
 init()
+
+print 'runQcChecks(): %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+
 runQcChecks()
+
+print 'closeFiles(): %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+
 closeFiles()
+
+print 'done: %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+
 
 if hasQcErrors == 1 : 
     sys.exit(2)
