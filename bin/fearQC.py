@@ -416,8 +416,7 @@ def qcMarkerIds():
         if not(goodID):
             if not goodID:
                 hasQcErrors = 1
-                badIdList.append('%-12s  %-20s%s' % (organizer, 'Organizer', CRT
-))
+                badIdList.append('%-12s  %-20s' % (organizer, 'Organizer'))
 
     #
     # Write MGI ID2 records to the report.
@@ -454,7 +453,7 @@ def qcMarkerIds():
         if not(goodID):
             if not goodID:
                 hasQcErrors = 1
-                badIdList.append('%-12s  %-20s%s' % (participant, 'Participant', CRT))
+                badIdList.append('%-12s  %-20s' % (participant, 'Participant'))
 
     #
     # Write bad MGI IDs to report
@@ -541,7 +540,7 @@ def runQcChecks ():
 	# is the category value valid?
 	if not categoryDict.has_key(cat.lower()):
 	    hasQcErrors = 1
-	    categoryList.append('%-12s  %-20s%s' % (lineCt, cat, CRT))
+	    categoryList.append('%-12s  %-20s' % (lineCt, cat))
 
 	    # if we don't know the category, we can't do all the QC checks
 	    # so continue to next line
