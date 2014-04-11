@@ -538,7 +538,7 @@ def runQcChecks ():
     while line:
 	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, prop, note) = map(string.strip, string.split(line, TAB))
 
-	if action.lower() != 'add' and cat.lower() != 'delete':
+	if action.lower() != 'add' and action.lower() != 'delete':
 	    hasQcErrors = 1
 	    actionList.append('%-12s  %-20s' % (lineCt, action))
 	# is the category value valid?

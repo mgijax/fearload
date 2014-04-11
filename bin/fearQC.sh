@@ -193,37 +193,6 @@ checkDupLines ()
     fi
 }
 
-#
-# FUNCTION: Check correct values in column 1 ('Action') in an input file
-#           and write the lines to the sanity report.
-#
-checkActionValues ()
-{
-    FILE=$1    # The input file to check
-    REPORT=$2  # The sanity report to write to
-
-    echo "\n\nInvalid 'Action' Value(s) in File" >> ${REPORT}
-    echo "-----------------------------------" >> ${REPORT}
-
-    # extract uniq values from the action column eliminating the header line and
-    # converting to lower case
-    actions=`cat ${FILE}  | tail +2 | cut -f1 | sort | uniq | tr '[:upper:]' '[:lower:]'`
-
-    error=0
-    #actions="add other delete pbj"
-    # check for valid actions
-    for i in $actions
-    do
-	if [ $i != 'delete' -a $i != 'add' ]
-	then
-	    error=1
-            echo $i >> ${REPORT}
-        fi
-    done
- 
-    return $error
-}
-
 echo "" >> ${LOG}
 date >> ${LOG}
 echo "Run sanity checks on the input file" >> ${LOG}
@@ -252,12 +221,6 @@ then
 fi
 
 checkDupLines ${INPUT_FILE} ${SANITY_RPT}
-if [ $? -ne 0 ]
-then
-    SANITY_ERROR=1
-fi
-
-checkActionValues ${INPUT_FILE} ${SANITY_RPT}
 if [ $? -ne 0 ]
 then
     SANITY_ERROR=1
