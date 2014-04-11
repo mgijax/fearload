@@ -522,6 +522,7 @@ def runQcChecks ():
     #
     
     # QC error lists
+    actionList = []
     categoryList = []
     qualifierList = []
     evidenceList = []
@@ -537,6 +538,9 @@ def runQcChecks ():
     while line:
 	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, prop, note) = map(string.strip, string.split(line, TAB))
 
+	if action.lower() != 'add' and cat.lower() != 'delete':
+	    hasQcErrors = 1
+	    actionList.append('%-12s  %-20s' % (lineCt, action))
 	# is the category value valid?
 	if not categoryDict.has_key(cat.lower()):
 	    hasQcErrors = 1
@@ -606,6 +610,13 @@ def runQcChecks ():
     qcMarkerIds()
 
     # write remaining errors to the report
+    if len(actionList):
+	fpQcRpt.write(CRT + CRT + string.center('Invalid Action Values',60) + CRT)
+        fpQcRpt.write('%-12s  %-20s%s' %
+             ('Line#','Action', CRT))
+        fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
+        fpQcRpt.write(string.join(actionList, CRT))
+
     if len(categoryList):
 	fpQcRpt.write(CRT + CRT + string.center('Invalid Categories',60) + CRT)
         fpQcRpt.write('%-12s  %-20s%s' %
