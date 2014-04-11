@@ -209,22 +209,18 @@ checkActionValues ()
     # converting to lower case
     actions=`cat ${FILE}  | tail +2 | cut -f1 | sort | uniq | tr '[:upper:]' '[:lower:]'`
 
-    echo 'delete' >  ${TMP_FILE}
-    echo 'add' >> ${TMP_FILE}
-    
     error=0
     #actions="add other delete pbj"
     # check for valid actions
     for i in $actions
     do
-	result=`cat ${TMP_FILE} | grep $i`
-	if [ "$result" = "" ]
+	if [ $i != 'delete' -a $i != 'add' ]
 	then
 	    error=1
-	    echo $i >> ${REPORT}
-	fi
+            echo $i >> ${REPORT}
+        fi
     done
-
+ 
     return $error
 }
 
@@ -324,6 +320,9 @@ then
 elif [ `cat ${TMP_FILE}` -eq 2 ]
 then
     echo "QC errors detected. See ${QC_RPT} " | tee -a ${LOG}
+elif [ `cat ${TMP_FILE}` -eq 3 ]
+then
+	echo "Sanity column missing data"
 else
     echo "No QC errors detected"
     RC=0
