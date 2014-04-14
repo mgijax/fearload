@@ -92,8 +92,8 @@ jNumDict = {}
 # MGI_User lookup {userLogin:key, ...}
 userDict = {}
 
-# proper MGI ID prefix excluding ':', in lowercase
-prefix = 'mgi'
+# proper MGI ID prefix in lowercase
+mgiPrefix = 'mgi:'
 
 # IDs w/o proper MGI ID prefix
 badIdList = []
@@ -371,7 +371,9 @@ def qcMarkerIds():
                 order by tmp.mgiID1''' % idTempTable
 
     results4 = db.sql(cmds, 'auto')
-    
+   
+    results5 = db.sql('''select mgiID1 as organizer, mgiID2 as participant
+		from tempdb..%s tmp''' % idTempTable, 'auto')
     if len(results1) >0 or len(results2) >0:
 	hasQcErrors = 1
 	fpQcRpt.write(string.center('Invalid Markers',80) + CRT)
@@ -385,7 +387,6 @@ def qcMarkerIds():
     # Write MGI ID1 records to the report.
     #
     for r in results1:
-        #print r
         organizer = r['mgiID1']
         objectType = r['name']
         markerStatus = r['status']
@@ -405,24 +406,10 @@ def qcMarkerIds():
         fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
             (organizer, objectType, markerStatus, reason, CRT))
 
-        # check for bad MGI ID for organizer
-        goodID = 1
-        if string.find(organizer, ':') == -1:
-                goodID = 0
-        else:
-            oPrefix = string.split(organizer, ':')[0]
-            if oPrefix.lower() !=  prefix:
-                goodID = 0
-        if not(goodID):
-            if not goodID:
-                hasQcErrors = 1
-                badIdList.append('%-12s  %-20s' % (organizer, 'Organizer'))
-
     #
     # Write MGI ID2 records to the report.
     #
     for r in results2:
-        #print r
         participant = r['mgiID2']
         objectType = r['name']
         markerStatus = r['status']
@@ -441,29 +428,6 @@ def qcMarkerIds():
 
 	fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
             (participant, objectType, markerStatus, reason, CRT))
-
-        # check for bad MGI ID for participant
-        goodID = 1
-        if string.find(participant, ':') == -1:
-                goodID = 0
-        else:
-            pPrefix = string.split(participant, ':')[0]
-            if pPrefix.lower() !=  prefix:
-                goodID = 0
-        if not(goodID):
-            if not goodID:
-                hasQcErrors = 1
-                badIdList.append('%-12s  %-20s' % (participant, 'Participant'))
-
-    #
-    # Write bad MGI IDs to report
-    #
-    if len(badIdList):
-        fpQcRpt.write(CRT + CRT + string.center('Invalid MGI IDs',40) + CRT)
-        fpQcRpt.write('%-15s  %-25s%s' %
-             ('MGI ID','Organizer or Participant?', CRT))
-        fpQcRpt.write(15*'-' + '  ' + 25*'-' + CRT)
-        fpQcRpt.write(string.join(badIdList, CRT))
 
     if len(results3) >0 or len(results4) >0:
         hasQcErrors = 1
@@ -490,7 +454,25 @@ def qcMarkerIds():
 	    which = 'Participant'
 	    fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
 		(sMgiID, symbol, pMgiID, which,  CRT))
+    for r in results5:
+	if string.find(r['organizer'].lower(), mgiPrefix ) == -1:
+	    #print 'organizer not mgi id'
+	    hasQcErrors = 1
+	    badIdList.append('%-12s  %-20s' % (r['organizer'], 'Organizer'))
+	if string.find(r['participant'].lower(), mgiPrefix ) == -1:
+	    #print 'participant not mgi id'
+	    hasQcErrors = 1
+	    badIdList.append('%-12s  %-20s' % (r['participant'], 'Participant'))
 
+    #
+    # Write bad MGI IDs to report
+    #
+    if len(badIdList):
+        fpQcRpt.write(CRT + CRT + string.center('Invalid MGI IDs',40) + CRT)
+        fpQcRpt.write('%-15s  %-25s%s' %
+             ('MGI ID','Organizer or Participant?', CRT))
+        fpQcRpt.write(15*'-' + '  ' + 25*'-' + CRT)
+        fpQcRpt.write(string.join(badIdList, CRT))
 
 #
 # Purpose: run the QC checks
