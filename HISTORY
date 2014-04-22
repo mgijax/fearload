@@ -1,9 +1,11 @@
+TAG: fearload-5-1-7-12
 TAG: fearload-5-1-7-11
 DATE: 04/22/2014
 STAFF: sc
 CHANGES: TR11560 - US25, sanity checks only
 1) fearQC.py - add sanity checks
 2) fearQC.sh - if warning.rpt exists, cat it to stdout
+3) fearload.config.default - added WARNING_RPT
 
 TAG: fearload-5-1-7-10
 DATE: 04/14/2014
