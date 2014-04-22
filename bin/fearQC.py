@@ -25,8 +25,9 @@
 #
 #      0:  Successful completion
 #      1:  An exception occurred
-#      2:  Non-fatal discrepancy errors detected in the input files
-#      3:  Fatal discrepancy errors detected in the input files
+#      2:  Fatal discrepancy errors detected and written to report
+#      3:  Warning errors written to the command line
+#      4:  Non-fatal discrepancy errors detected and written to report
 #
 #  Assumes:
 #
@@ -72,7 +73,7 @@ idBcpFile= os.environ['MGI_ID_BCP']
 idTempTable = os.environ['MGI_ID_TEMP_TABLE']
 
 # 1 if QC errors
-hasQcErrors = 0
+hasFatalErrors = 0
 
 # category lookup {name:Category object, ...}
 categoryDict = {}
@@ -92,11 +93,17 @@ jNumDict = {}
 # MGI_User lookup {userLogin:key, ...}
 userDict = {}
 
+# list of valid properties
+propList = []
+
 # proper MGI ID prefix in lowercase
 mgiPrefix = 'mgi:'
 
 # IDs w/o proper MGI ID prefix
 badIdList = []
+
+# columns 1-numNonPropCol may NOT include properties
+numNonPropCol=13
 #
 # Purpose: Validate the arguments to the script.
 # Returns: Nothing
@@ -132,7 +139,7 @@ def init ():
 
     global nextPropertyKey, categoryDict, relationshipDict
     global qualifierDict, evidenceDict, jNumDict, userDict
-    global passwordFile
+    global propList, passwordFile
 
     openFiles()
 
@@ -204,13 +211,21 @@ def init ():
     for r in results:
         jNumDict[r['accid'].lower()] = r['_Object_key']
 
-    # active status (not data load or inactive)
+    # Creator lookup
     #print 'creator lookup %s' % mgi_utils.date()
     results = db.sql('''select login, _User_key
         from MGI_User
         where _UserStatus_key = 316350''', 'auto')
     for r in results:
         userDict[r['login'].lower()] = r['_User_key']
+
+    # Properties lookup
+    results = db.sql('''select t.term
+        from VOC_Term t
+        where _Vocab_key = 97''', 'auto')
+    for r in results:
+        propList.append(r['term'].lower())
+    #print 'propList: %s' % propList
 
     # for MGI ID verification
     loadTempTables()
@@ -260,7 +275,7 @@ def openFiles ():
 #
 
 def qcMarkerIds():
-    global hasQcErrors, badIdList 
+    global hasFatalErrors, badIdList 
 
     # Find any MGI IDs from the relationship file that:
     # 1) Do not exist in the database.
@@ -375,7 +390,7 @@ def qcMarkerIds():
     results5 = db.sql('''select mgiID1 as organizer, mgiID2 as participant
 		from tempdb..%s tmp''' % idTempTable, 'auto')
     if len(results1) >0 or len(results2) >0:
-	hasQcErrors = 1
+	hasFatalErrors = 1
 	fpQcRpt.write(string.center('Invalid Markers',80) + CRT)
 	fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
 	     ('MGI ID','Object Type',
@@ -430,7 +445,7 @@ def qcMarkerIds():
             (participant, objectType, markerStatus, reason, CRT))
 
     if len(results3) >0 or len(results4) >0:
-        hasQcErrors = 1
+        hasFatalErrors = 1
         fpQcRpt.write(CRT + CRT + string.center('Secondary MGI IDs',80) + CRT)
         fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
              ('2ndary MGI ID','Symbol',
@@ -457,11 +472,11 @@ def qcMarkerIds():
     for r in results5:
 	if string.find(r['organizer'].lower(), mgiPrefix ) == -1:
 	    #print 'organizer not mgi id'
-	    hasQcErrors = 1
+	    hasFatalErrors = 1
 	    badIdList.append('%-12s  %-20s' % (r['organizer'], 'Organizer'))
 	if string.find(r['participant'].lower(), mgiPrefix ) == -1:
 	    #print 'participant not mgi id'
-	    hasQcErrors = 1
+	    hasFatalErrors = 1
 	    badIdList.append('%-12s  %-20s' % (r['participant'], 'Participant'))
 
     #
@@ -483,7 +498,7 @@ def qcMarkerIds():
 #
 def runQcChecks ():
 
-    global hasQcErrors
+    global hasFatalErrors
     #* col2 - category - verify in db
     #* col3 - objId1 - id exists, is primary and correct type (from category)
     # col5 - relationshipId - id exists, not obsolete, correct vocab/dag (from category)
@@ -492,12 +507,9 @@ def runQcChecks ():
     #* col10 - evid code - code exists
     #* col11 - jNum - verify it exists
     #* col12 - creator login - verify exists
-    # no dups between file and db - 'uniqueness' key (non-fatal)
-    # cluster member checks: these defered til another US
-    ## chr for mrkId1 and mrkId2 match
-    ## mrkId1/2 both interim or official status
-    ## mrkId1/2 both mouse
-    ## if both mrk's have coords, check that mrk2 coords within mrk1
+    #* col13 - notes
+    #* col14-N - properties columns, may be mixed with non-property columns
+    #*    which will be ignored
     
     #
     # parse the input file 
@@ -514,18 +526,80 @@ def runQcChecks ():
     obsRelIdList = []
     relVocabList = []
     relDagList = []
-    line = fpInput.readline()  # discard header
-    line = fpInput.readline()
-    lineCt = 2
-    while line:
-	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, prop, note) = map(string.strip, string.split(line, TAB))
+    badPropList = []
+    badPropValueList = []
 
-	if action.lower() != 'add' and action.lower() != 'delete':
-	    hasQcErrors = 1
+    # integer index of valid property columns mapped to list where
+    # list[0] is column header, list[1] is True of at least one row for that
+    # property has data
+    # {14:['score', True], ...}
+    propIndexDict = {}
+    emptyPropColumnList = []
+    lineCt = 0
+
+    #
+    # Process the header for properties
+    #
+    header = fpInput.readline()  
+    lineCt = 1
+
+    # all comparisons in lower case
+    headerTokens = string.split(header.lower(), TAB)
+
+    # total number of columns in the file
+    numColumns = len(headerTokens)
+
+    # col 1-13 - no property columns
+    # col 14-N - property columns (parsed) or curator notes columns (ignored)
+    # example property header: 'Property:score' or 'Property:data_source'
+    colCt = 0
+    for h in headerTokens:
+	#print 'header: %s' % h
+	colCt += 1
+	if string.find(h, ':'):
+	    # remove leading/trailing WS e.g. ' Property : score ' -->
+	    # ['Property', 'score']
+	    tokens = map(string.strip, string.split(h, ':'))
+	    if tokens[0] == 'property':
+		if len(tokens) != 2:
+		    #print 'Property column with improper format'
+		    badPropList.append('%-12s  %-20s  %-30s' %
+                        (lineCt, h, 'Property header with invalid format' ))
+		elif colCt <= numNonPropCol:
+		    #print 'Property found in columns 1-13'
+		    badPropList.append('%-12s  %-20s  %-30s' %
+			(lineCt, h, 'Property header in column 1-13' ))
+		else:
+		    value = tokens[1]
+		    if value not in propList:
+			badPropList.append('%-12s  %-20s  %-30s' %
+                        (lineCt, h.strip(), 'Invalid property value' ))
+		    else:
+			propIndexDict[colCt-14] = [value, False]
+    if len(badPropList):
+	fpQcRpt.write(CRT + CRT + string.center('Invalid Properties',60) + CRT)
+        fpQcRpt.write('%-12s  %-20s  %-20s%s' %
+             ('Line#','Property Header', 'Reason', CRT))
+        fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + 20*'-' + CRT)
+        fpQcRpt.write(string.join(badPropList, CRT))
+        fpQcRpt.close()
+	sys.exit(2)
+
+    line = fpInput.readline()
+    while line:
+	lineCt += 1
+
+	# get the first 13 lines - these are fixed columns
+	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note) = map(string.lower, map(string.strip, string.split(line, TAB))[:13])
+        remainingTokens = map(string.lower, map(string.strip, string.split(line
+, TAB))[13:])
+	#print remainingTokens
+	if action != 'add' and action != 'delete':
+	    hasFatalErrors = 1
 	    actionList.append('%-12s  %-20s' % (lineCt, action))
 	# is the category value valid?
-	if not categoryDict.has_key(cat.lower()):
-	    hasQcErrors = 1
+	if not categoryDict.has_key(cat):
+	    hasFatalErrors = 1
 	    categoryList.append('%-12s  %-20s' % (lineCt, cat))
 
 	    # if we don't know the category, we can't do all the QC checks
@@ -534,42 +608,42 @@ def runQcChecks ():
 	    lineCt += 1
             continue
         else:
-	    cDict = categoryDict[cat.lower()]
+	    cDict = categoryDict[cat]
 
 	# default value when qual column empty is 'Not Specified'
 	if qual == '':
 	    qual = 'Not Specified'
 
 	# is the qualifier value valid?
-	if not qualifierDict.has_key(qual.lower()):
-	    hasQcErrors = 1
+	if not qualifierDict.has_key(qual):
+	    hasFatalErrors = 1
 	    qualifierList.append('%-12s  %-20s' % (lineCt, qual))
 
 	# is the evidence value valid?
-	if not evidenceDict.has_key(evid.lower()):
-	    hasQcErrors = 1
+	if not evidenceDict.has_key(evid):
+	    hasFatalErrors = 1
 	    evidenceList.append('%-12s  %-20s' % (lineCt, evid))
 
 	# is the J Number valid?
-	if not jNumDict.has_key(jNum.lower()):
-	    hasQcErrors = 1
+	if not jNumDict.has_key(jNum):
+	    hasFatalErrors = 1
 	    jNumList.append('%-12s  %-20s' % (lineCt, jNum))
 
 	# is the user login valid?
-	if not userDict.has_key(creator.lower()):
-	    hasQcErrors = 1
+	if not userDict.has_key(creator):
+	    hasFatalErrors = 1
 	    userList.append('%-12s  %-20s' % (lineCt, creator))
 
 	# is the relationship ID valid?
-	if not relationshipDict.has_key(relId.lower()):
-	    hasQcErrors = 1
+	if not relationshipDict.has_key(relId):
+	    hasFatalErrors = 1
 	    relIdList.append('%-12s  %-20s' % (lineCt, relId))
 	else:
-	    relDict = relationshipDict[relId.lower()]
+	    relDict = relationshipDict[relId]
 	
 	    # is the relationship term obsolete?	
 	    if relDict['isObsolete'] != 0:
-		hasQcErrors = 1
+		hasFatalErrors = 1
 		obsRelIdList.append('%-12s  %-20s' % (lineCt, relId))
 	    #print 'Incoming vocab key: %s Category vocab key: %s' % (relDict['_Vocab_key'], cDict['_RelationshipVocab_key'])
 	    #print 'Rel vocab key: %s, cat vocab key %s' % (relDict['_Vocab_key'], cDict['_RelationshipVocab_key'])
@@ -578,15 +652,51 @@ def runQcChecks ():
 	    # NOTE: since we are only using one vocab at this time, this
 	    # can never happen, leaving the code in for the future
 	    if relDict['_Vocab_key'] != cDict['_RelationshipVocab_key']:
-		hasQcErrors = 1
+		hasFatalErrors = 1
 		relVocabList.append('%-12s  %-20s' % (lineCt, relId))
 
 	    # is the relationship DAG different than the category DAG?
 	    if relDict['_DAG_key'] != cDict['_RelationshipDAG_key']:
-		hasQcErrors = 1
+		hasFatalErrors = 1
 		relDagList.append('%-12s  %-20s' % (lineCt, relId))
+	for i in propIndexDict.keys():
+	    print '%s: %s' % (i, propIndexDict[i][0])
+	    propertyValue = remainingTokens[i]
+	    propertyName = propIndexDict[i][0]
+	    if propertyValue != '':
+		propIndexDict[i][1] = True
+	    if propertyName == 'score' and propertyValue != '':
+		#print 'property is score, value is %s' % propertyValue
+		#print string.find(propertyValue, '+') == 0 
+		if string.find(propertyValue, '+') == 0 or string.find(propertyValue, '-') == 0:
+		    propertyValue = propertyValue[1:]
+		    #print propertyValue
+		try:
+		    propertyValueFloat = float(propertyValue)
+		except:
+		    #print 'invalid score: %s' % propertyValue
+		    hasFatalErrors = 1
+		    badPropValueList.append('%-12s   %-20s  %-20s' % (lineCt, propertyName, propertyValue))
+		#print 'propertyValueFloat: %s' % propertyValueFloat
+	
+		    
+
 	line = fpInput.readline()
 	lineCt += 1
+	
+    # check for no data in a property column and write out to intermediate
+    # file. This is a warning report
+    print 'propertyIndexDict'
+    print propIndexDict
+    for i in propIndexDict.keys():
+	if propIndexDict[i][1] == False:
+	    emptyPropColumnList.append (propIndexDict[i][0])
+    if emptyPropColumnList:
+	fpWarn = open(os.environ['WARNING_RPT'], 'w')
+	fpWarn.write('\nProperty Columns with no Data: %s' % CRT)
+	for p in emptyPropColumnList:
+	    fpWarn.write('    %s%s' % (p, CRT))
+	fpWarn.close()
 
     # do the marker ID checks - this function writes any errors to the report
     qcMarkerIds()
@@ -661,7 +771,12 @@ def runQcChecks ():
              ('Line#','Relationship ID', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(string.join(relDagList, CRT))
-
+    if len(badPropValueList):
+	fpQcRpt.write(CRT + CRT + string.center('Invalid Property Values',60) + CRT)
+        fpQcRpt.write('%-12s  %-20s  %-20s%s' %
+             ('Line#','Property', 'Value', CRT))
+        fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + 20*'-' + CRT)
+        fpQcRpt.write(string.join(badPropValueList, CRT))
 
 #
 # Purpose: Close the files.
@@ -697,8 +812,7 @@ def loadTempTables ():
     junk = fp.readline() # header
     line = fp.readline()
     while line:
-	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, prop, note) = string.split(line, TAB)
-
+	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note) = map(string.strip, string.split(line, TAB))[:13]
 	fpIDBCP.write('%s%s%s%s%s%s' % (obj1Id, TAB, obj2Id, TAB, cat, CRT))
         line = fp.readline()
 
@@ -741,9 +855,7 @@ closeFiles()
 print 'done: %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
 
 
-if hasQcErrors == 1 : 
+if hasFatalErrors == 1 : 
     sys.exit(2)
-#elif nonfatalCount > 0:
-#    sys.exit(3)
 else:
     sys.exit(0)

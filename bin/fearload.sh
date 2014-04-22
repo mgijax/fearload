@@ -102,8 +102,8 @@ fi
 # Run sanity checker
 #echo "" >> ${LOG_DIAG}
 #date >> ${LOG_DIAG}
-#echo "Run sanity checks"  | tee -a ${LOG_DIAG}
-#${FEARLOAD}/bin/sanity.sh ${INPUT_FILE_DEFAULT}
+#echo "Run sanity/QC checks"  | tee -a ${LOG_DIAG}
+#${FEARLOAD}/bin/fearQC.sh ${INPUT_FILE_DEFAULT}
 #STAT=$?
 #if [ ${STAT} -eq 2 ]
 #then

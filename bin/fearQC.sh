@@ -102,6 +102,7 @@ if [ ${LIVE_RUN} -eq 0 ]
 then
 	SANITY_RPT=${CURRENTDIR}/`basename ${SANITY_RPT}`
 	QC_RPT=${CURRENTDIR}/`basename ${QC_RPT}`
+	WARNING_RPT=${CURRENTDIR}/`basename ${WARNING_RPT}`
 	QC_LOGFILE=${CURRENTDIR}/`basename ${QC_LOGFILE}`
 
 fi
@@ -283,14 +284,17 @@ then
 elif [ `cat ${TMP_FILE}` -eq 2 ]
 then
     echo "QC errors detected. See ${QC_RPT} " | tee -a ${LOG}
-elif [ `cat ${TMP_FILE}` -eq 3 ]
-then
-	echo "Sanity column missing data"
+    RC=1
 else
     echo "No QC errors detected"
     RC=0
 fi
 
+if [ -f ${WARNING_RPT} ]
+then
+    cat ${WARNING_RPT}
+    rm ${WARNING_RPT}
+fi
 #
 # Drop the temp tables.
 #
