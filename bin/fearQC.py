@@ -660,7 +660,7 @@ def runQcChecks ():
 		hasFatalErrors = 1
 		relDagList.append('%-12s  %-20s' % (lineCt, relId))
 	for i in propIndexDict.keys():
-	    print '%s: %s' % (i, propIndexDict[i][0])
+	    #print '%s: %s' % (i, propIndexDict[i][0])
 	    propertyValue = remainingTokens[i]
 	    propertyName = propIndexDict[i][0]
 	    if propertyValue != '':
@@ -686,8 +686,8 @@ def runQcChecks ():
 	
     # check for no data in a property column and write out to intermediate
     # file. This is a warning report
-    print 'propertyIndexDict'
-    print propIndexDict
+    #print 'propertyIndexDict'
+    #print propIndexDict
     for i in propIndexDict.keys():
 	if propIndexDict[i][1] == False:
 	    emptyPropColumnList.append (propIndexDict[i][0])
