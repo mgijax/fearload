@@ -1,3 +1,17 @@
+TAG: fearload-5-1-7-13
+DATE: 04/23/2014
+STAFF: sc
+CHANGES: TR11560 - US25, load changes
+1) fearload.config.default - added:
+a) NOTE_BCP, NOTECHUNK_BCP
+b) RELATIONSHIP_NOTE_KEY
+2) fearQC.sh -  echo only if not live run
+3) fearload.sh - setup to run sanity checks from load, added bcpin of 
+       properties and notes
+4) fearload.py 
+a) added processing of notes and properties
+b) changed from readlines() to readline() for future perf improvement
+ 
 TAG: fearload-5-1-7-12
 TAG: fearload-5-1-7-11
 DATE: 04/22/2014

@@ -69,6 +69,7 @@ import Set
 
 import db
 import mgi_utils
+import vocloadlib
 
 #
 #  CONSTANTS
@@ -86,18 +87,27 @@ USAGE='fearload.py'
 inFile = os.environ['INPUT_FILE_DEFAULT']
 relationshipFile =   os.environ['RELATIONSHIP_BCP']
 propertyFile = os.environ['PROPERTY_BCP']
+noteFile = os.environ['NOTE_BCP']
+noteChunkFile = os.environ['NOTECHUNK_BCP']
 relVocabKey = os.environ['RELATIONSHIP_VOCAB_KEY']
 qualVocabKey = os.environ['QUALIFIER_VOCAB_KEY']
 evidVocabKey = os.environ['EVIDENCE_VOCAB_KEY']
+relationshipNoteTypeKey =  os.environ['RELATIONSHIP_NOTE_KEY']
 
 # file descriptors
 fpInFile = ''
 fpRelationshipFile = ''
 fpPropertyFile = ''
+fpNoteFile = ''
+fpNoteChunkFile = ''
 
 # database primary keys, the next one available
-nextRelationshipKey = ''	# MGI_Relationship
-nextPropertyKey = ''		# MGI_Relationship_Property
+nextRelationshipKey = 1000	# MGI_Relationship._Relationship_key
+nextPropertyKey = 1000		# MGI_Relationship_Property._Property_key
+nextNoteKey = 1000		# MGI_Note._Note_key
+
+# relationship mgiType 
+relationshipMgiTypeKey = 40
 
 # category lookup {name:Category object, ...}
 categoryDict = {}
@@ -119,8 +129,11 @@ jNumDict = {}
 # marker lookup {mgiID:key, ...)
 markerDict = {}
 
-# MGI_User dict {userLogin:key, ...}
+# MGI_User lookup {userLogin:key, ...}
 userDict = {}
+
+# property lookup (propName:key, ...)
+propertyDict = {}
 
 def checkArgs ():
     # Purpose: Validate the arguments to the script.
@@ -143,8 +156,10 @@ def init():
     # Effects: Sets global variables, exits if a file cant be opened,
     #  creates files in the file system, creates connection to a database
 
-    global nextRelationshipKey, nextPropertyKey, categoryDict, relationshipDict
+    global nextRelationshipKey, nextPropertyKey, nextNoteKey
+    global categoryDict, relationshipDict, propertyDict
     global qualifierDict, evidenceDict, jNumDict, userDict, markerDict
+    
     openFiles()
     #
     # create database connection
@@ -171,6 +186,13 @@ def init():
         nextPropertyKey = 1000
     else:
         nextPropertyKey = results[0]['nextKey']
+    #
+    # get next MGI_Note key
+    #
+    results = db.sql('''select max(_Note_key) + 1 as nextKey
+	from MGI_Note''', 'auto')
+        
+    nextNoteKey = results[0]['nextKey']
 
     #
     # create lookups
@@ -243,6 +265,15 @@ def init():
     for r in results:
 	userDict[r['login']] = r['_User_key']
 
+    # property term lookup
+
+    # FeaR property term lookup
+    results = db.sql('''select term, _Term_key
+        from VOC_Term
+        where _Vocab_key = 97''', 'auto')
+    for r in results:
+        propertyDict[r['term'].lower()] = r['_Term_key']
+
     db.useOneConnection(0)
 # end init()
 
@@ -254,6 +285,7 @@ def openFiles ():
     #  creates files in the file system
 
     global fpInFile, fpRelationshipFile, fpPropertyFile
+    global fpNoteFile, fpNoteChunkFile
 
     try:
         fpInFile = open(inFile, 'r')
@@ -273,6 +305,19 @@ def openFiles ():
         print 'Cannot open Feature relationships property bcp file: %s' % propertyFile
         sys.exit(1)
 
+    try:
+        fpNoteFile = open(noteFile, 'w')
+    except:
+        print 'Cannot open Feature relationships Note bcp file: %s' % noteFile
+        sys.exit(1)
+
+    try:
+        fpNoteChunkFile = open(noteChunkFile, 'w')
+    except:
+        print 'Cannot open Feature relationships Note Chunk bcp file: %s' % \
+	    noteChunkFile
+        sys.exit(1)
+
 
 # end openFiles() -------------------------------
 
@@ -285,10 +330,13 @@ def closeFiles ():
     # Throws: Nothing
 
     global fpInFile, fpRelationshipFile, fpPropertyFile
-    
+    global fpNoteFile, fpNoteChunkFile
+
     fpInFile.close()
     fpRelationshipFile.close()
     fpPropertyFile.close()
+    fpNoteFile.close()
+    fpNoteChunkFile.close()
 
     return
 
@@ -301,15 +349,36 @@ def createFiles( ):
     # Assumes: file descriptors have been initialized
     # Effects: sets global variables, writes to the file system
     # Throws: Nothing
-    global nextRelationshipKey
+    global nextRelationshipKey, nextNoteKey, nextPropertyKey
 
     # remove the header line
-    fpInFile.readline()
-    for line in fpInFile.readlines():
+    header = fpInFile.readline()
+
+    # find properties columns and map their column number to their property
+    # name {colNum:propNameKey, ...}
+    inputPropDict = {}
+
+    # example property header: 'Property:score' or 'Property:data_source
+    propTokens = map(string.strip, string.split(header, TAB))[13:]
+    colCt = 0
+    for p in propTokens:
+	colCt += 1
+	if string.find(p, ':'):
+	    tokens = map(string.strip, string.split(p, ':'))
+            if tokens[0].lower() == 'property' and len(tokens) == 2:
+		propName = tokens[1].lower()
+		# assume QC script has verified
+		inputPropDict[colCt] = propertyDict[propName]
+    #print inputPropDict
+
+    line = fpInFile.readline()
+    while line:
 	# added quick cleanup to remove leading & trailing spaces from fields
 
-	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, prop, note) = map(string.strip, string.split(line, TAB))
-	#print '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s' % (action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, prop, note)
+	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note) = map(string.strip, string.split(line, TAB)[:13])
+	remainingTokens = map(string.strip, string.split(line, TAB))[13:]
+
+	#print '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s' % (action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note)
 
 	# added more info to line-by-line debugging
 
@@ -357,11 +426,44 @@ def createFiles( ):
 	    print 'User (%s) not found in line %s' % (creator, line)
 	    continue
 
-	# create bcp line
+	#
+	# create bcp lines
+	#
+
+	# MGI_Relationship
 	fpRelationshipFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % \
 	    (nextRelationshipKey, TAB, catKey, TAB, objKey1, TAB, objKey2, TAB, relKey, TAB, qualKey, TAB, evidKey, TAB, refsKey, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT))
+
+  	# MGI_Note
+	if note != '':
+	    fpNoteFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % \
+		(nextNoteKey, TAB, nextRelationshipKey, TAB, relationshipMgiTypeKey, TAB, relationshipNoteTypeKey, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT))
+
+	    # MGI_NoteChunk
+	    seqNum = 0
+	    for chunk in vocloadlib.splitBySize(note, 255):
+		seqNum += 1
+		fpNoteChunkFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s'% \
+		    (nextNoteKey, TAB, seqNum, TAB, chunk, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT))
+
+
+	# MGI_Relationship_Property
+	seqNum = 0
+	for i in inputPropDict.keys():
+	    seqNum += 1
+	    propValue = remainingTokens[i-1]
+	    propNameKey = inputPropDict[i]
+	    #  no prop specified for this relationship
+	    if propValue == '':
+		continue
+	    elif propNameKey == 11588491: 	# score
+		propValue = float(propValue)	# convert score to float
+	    fpPropertyFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextPropertyKey, TAB, nextRelationshipKey, TAB, propNameKey, TAB, propValue, TAB, seqNum, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT ) )
+
 	nextRelationshipKey += 1
-	
+	nextNoteKey += 1
+	nextPropertyKey += 1
+	line = fpInFile.readline()
 # end createFiles() -------------------------------------
 
 class Category:

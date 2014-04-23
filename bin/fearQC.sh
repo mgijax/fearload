@@ -164,9 +164,6 @@ checkLineCount ()
     COUNT=`cat ${FILE} | wc -l | sed 's/ //g'`
     if [ ${COUNT} -lt ${NUM_LINES} ]
     then
-        #echo "\n\n**** WARNING ****" >> ${REPORT}
-        #echo "${FILE} has ${COUNT} lines." >> ${REPORT}
-        #echo "Expecting at least ${NUM_LINES} lines." >> ${REPORT}
         return 1
     else
         return 0
@@ -229,7 +226,10 @@ fi
 
 if [ ${SANITY_ERROR} -ne 0 ]
 then
-    echo "Sanity errors detected. See ${SANITY_RPT}" | tee -a ${LOG}
+    if [ ${LIVE_RUN} -eq 0 ]
+    then
+	echo "Sanity errors detected. See ${SANITY_RPT}" | tee -a ${LOG}
+    fi
     exit 1
 fi
 
@@ -280,17 +280,23 @@ if [ `cat ${TMP_FILE}` -eq 1 ]
 then
     echo "An error occurred while generating the QC reports"
     echo "See log file (${LOG})"
-    RC=1
+    RC=2
 elif [ `cat ${TMP_FILE}` -eq 2 ]
 then
-    echo "QC errors detected. See ${QC_RPT} " | tee -a ${LOG}
-    RC=1
+    if [ ${LIVE_RUN} -eq 0 ]
+    then
+	echo "QC errors detected. See ${QC_RPT} " | tee -a ${LOG}
+    fi
+    RC=3
 else
-    echo "No QC errors detected"
+    if [ ${LIVE_RUN} -eq 0 ]
+    then
+	echo "No QC errors detected"
+    fi
     RC=0
 fi
 
-if [ -f ${WARNING_RPT} ]
+if [ -f ${WARNING_RPT} -a ${LIVE_RUN} -eq 0 ]
 then
     cat ${WARNING_RPT}
     rm ${WARNING_RPT}

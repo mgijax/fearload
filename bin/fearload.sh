@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/sh -x
 
 #
 # This script is a wrapper around the process that loads 
@@ -99,20 +99,34 @@ then
     fi
 fi
 
-# Run sanity checker
-#echo "" >> ${LOG_DIAG}
-#date >> ${LOG_DIAG}
-#echo "Run sanity/QC checks"  | tee -a ${LOG_DIAG}
-#${FEARLOAD}/bin/fearQC.sh ${INPUT_FILE_DEFAULT}
-#STAT=$?
-#if [ ${STAT} -eq 2 ]
-#then
-#    checkStatus ${STAT} "\nInvalid OBO format ${INPUT_FILE_DEFAULT}. Version ${OBO_FILE_VERSION} expected\n"
-#    
-#    # run postload cleanup and email logs
-#    shutDown
-#
-#fi
+echo "" >> ${LOG_DIAG}
+date >> ${LOG_DIAG}
+echo "Run sanity/QC checks"  | tee -a ${LOG_DIAG}
+${FEARLOAD}/bin/fearQC.sh ${INPUT_FILE_DEFAULT} live
+STAT=$?
+if [ ${STAT} -eq 1 ]
+then
+    checkStatus ${STAT} "Sanity errors detected. See ${SANITY_RPT}. fearQC.sh"
+    # run postload cleanup and email logs
+    shutDown
+fi
+
+if [ ${STAT} -eq 2 ]
+then
+    checkStatus ${STAT} "An error occurred while generating the sanity/QC reports - See ${QC_LOGFILE}. fearQC.sh"
+
+    # run postload cleanup and email logs
+    shutDown
+fi
+
+if [ ${STAT} -eq 3 ]
+then
+    checkStatus ${STAT} "QC errors detected. See ${QC_RPT}. fearQC.sh"
+    
+    # run postload cleanup and email logs
+    shutDown
+
+fi
 
 #
 # run the load
@@ -147,22 +161,42 @@ ${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR}
 # Create indexes
 ${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
 
-#TABLE=MGI_Relationship_Property
+TABLE=MGI_Relationship_Property
 # Drop indexes
-#${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
+${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
 
 # BCP new data
-#${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAondexes
+${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
 
 # Create indexes
-#${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
+${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
+
+TABLE=MGI_Note
+# Drop indexes
+${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
+
+# BCP new data
+${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+
+# Create indexes
+${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
+
+TABLE=MGI_NoteChunk
+# Drop indexes
+${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
+
+# BCP new data
+${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+
+# Create indexes
+${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
 
 #
 # Archive a copy of the input file, adding a timestamp suffix.
 #
 echo "" >> ${LOG_DIAG}
 date >> ${LOG_DIAG}
-echo "Archive input file" | tee -a ${LOG_DIAG}
+echo "Archive input file" >> ${LOG_DIAG}
 TIMESTAMP=`date '+%Y%m%d.%H%M'`
 ARC_FILE=`basename ${INPUT_FILE_DEFAULT}`.${TIMESTAMP}
 cp -p ${INPUT_FILE_DEFAULT} ${ARCHIVEDIR}/${ARC_FILE}
