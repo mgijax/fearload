@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/sh 
 
 #
 # This script is a wrapper around the process that loads 
