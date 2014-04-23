@@ -189,7 +189,7 @@ def init ():
         and isObsolete = 0''', 'auto')
     for r in results:
         qualifierDict[r['term'].lower()] = r['_Term_key']
-
+    
     # FeaR evidence lookup
     #print 'evidence lookup %s' % mgi_utils.date()
     results = db.sql('''select _Term_key, abbreviation
@@ -612,7 +612,7 @@ def runQcChecks ():
 
 	# default value when qual column empty is 'Not Specified'
 	if qual == '':
-	    qual = 'Not Specified'
+	    qual = 'not specified'
 
 	# is the qualifier value valid?
 	if not qualifierDict.has_key(qual):
