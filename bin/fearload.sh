@@ -162,34 +162,43 @@ ${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR}
 ${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
 
 TABLE=MGI_Relationship_Property
-# Drop indexes
-${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
+if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]
+then
+    # Drop indexes
+    ${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
 
-# BCP new data
-${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+    # BCP new data
+    ${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
 
-# Create indexes
-${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
+    # Create indexes
+    ${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
+fi
 
 TABLE=MGI_Note
-# Drop indexes
-${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
+if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]
+then
+    # Drop indexes
+    ${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
 
-# BCP new data
-${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+    # BCP new data
+    ${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
 
-# Create indexes
-${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
+    # Create indexes
+    ${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
+fi
 
 TABLE=MGI_NoteChunk
-# Drop indexes
-${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
+if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]
+then
+    # Drop indexes
+    ${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
 
-# BCP new data
-${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+    # BCP new data
+    ${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
 
-# Create indexes
-${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
+    # Create indexes
+    ${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
+fi
 
 #
 # Archive a copy of the input file, adding a timestamp suffix.

@@ -1,3 +1,11 @@
+TAG: fearload-5-1-7-14
+DATE: 04/24/2014
+STAFF: sc
+CHANGES: TR11560 - US25, load changes
+1) fearload.sh - check for empty bcp files and don't drop indexes/bcp/create
+   indexes if files are empty.
+2) fearload.py - fixed bug incrementing properties key (added a tab!)
+
 TAG: fearload-5-1-7-13
 DATE: 04/23/2014
 STAFF: sc

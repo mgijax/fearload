@@ -459,10 +459,9 @@ def createFiles( ):
 	    elif propNameKey == 11588491: 	# score
 		propValue = float(propValue)	# convert score to float
 	    fpPropertyFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextPropertyKey, TAB, nextRelationshipKey, TAB, propNameKey, TAB, propValue, TAB, seqNum, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT ) )
-
+	    nextPropertyKey += 1
 	nextRelationshipKey += 1
 	nextNoteKey += 1
-	nextPropertyKey += 1
 	line = fpInFile.readline()
 # end createFiles() -------------------------------------
 
