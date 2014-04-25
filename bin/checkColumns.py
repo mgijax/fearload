@@ -90,14 +90,13 @@ def openFile ():
 # Throws: Nothing
 #
 def checkColumns ():
-    #print 'starting checkColumns'
     global errors
     lineNum = 1
     header = fpInput.readline()
     for line in fpInput.readlines():
 	colError = 0
 	lineNum = lineNum + 1
-   	columns = string.split(line, TAB)
+   	columns = map(string.strip, string.split(line, TAB))
 	# remove newline from last column
         last = columns[-1].strip()
         columns[-1] = last

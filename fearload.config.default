@@ -63,7 +63,7 @@ export SANITY_RPT QC_RPT WARNING_RPT QC_LOGFILE
 #
 
 # Number of columns expected for the input file (for sanity check).
-NUM_COLUMNS=14
+NUM_COLUMNS=13
 
 # list of required columns
 REQUIRED_COLUMNS="1,2,3,5,7,9,10,11,12"  

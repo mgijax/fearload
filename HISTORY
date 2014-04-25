@@ -1,3 +1,18 @@
+TAG: fearload-5-1-7-15
+DATE: 04/24/2014
+STAFF: sc
+CHANGES: TR11560 - US25, load changes
+1) fearload.config.default - change NUM_COLUMNS=13 to NUM_COLUMNS=14
+2) fearload.py  - add removal of score '+' sign when present (allow '-')
+3) checkColumns.py - remove white space from tokens in line
+
+TAG: fearload-5-1-7-15
+DATE: 04/24/2014
+STAFF: sc
+CHANGES: TR11560 - US25, load changes
+1) fearload.py - for property 'score' load '-' but not '+'
+2) fearload.config.default - fix notetype key
+
 TAG: fearload-5-1-7-14
 DATE: 04/24/2014
 STAFF: sc

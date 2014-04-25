@@ -457,6 +457,8 @@ def createFiles( ):
 	    if propValue == '':
 		continue
 	    elif propNameKey == 11588491: 	# score
+		if string.find(propValue, '+')  == 0:
+		    propValue = propValue[1:]
 		propValue = float(propValue)	# convert score to float
 	    fpPropertyFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextPropertyKey, TAB, nextRelationshipKey, TAB, propNameKey, TAB, propValue, TAB, seqNum, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT ) )
 	    nextPropertyKey += 1
