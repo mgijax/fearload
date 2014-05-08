@@ -1,3 +1,10 @@
+TAG: fearload-5-1-7-16
+DATE: 05/08/2014
+STAFF: sc
+CHANGES:
+1) fearload.py - added case insensitive/stripped comparisons as we do in fearQC.py
+   this was an oversight on my part and was not part of any testing for US10/25
+
 TAG: fearload-5-1-7-15
 DATE: 04/24/2014
 STAFF: sc

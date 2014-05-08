@@ -201,7 +201,7 @@ def init():
     # FeaR Category Lookup
     results = db.sql('''select * from MGI_Relationship_Category''', 'auto')
     for r in results:
-	name = r['name']
+	name = r['name'].lower()
   	cat = Category()
 	cat.key = r['_Category_key']
 	cat.name = name
@@ -219,7 +219,7 @@ def init():
 	and a._Object_key = t._Term_key
 	and t.isObsolete = 0''', 'auto')
     for r in results:
-	relationshipDict[r['accid']] = r['_Object_key']
+	relationshipDict[r['accid'].lower()] = r['_Object_key']
 
     # FeaR qualifier lookup
     results = db.sql('''select _Term_key, term
@@ -227,7 +227,7 @@ def init():
         where _Vocab_key = 94
         and isObsolete = 0''', 'auto')
     for r in results:
-        qualifierDict[r['term']] = r['_Term_key']
+        qualifierDict[r['term'].lower()] = r['_Term_key']
 
     # FeaR evidence lookup
     results = db.sql('''select _Term_key, abbreviation
@@ -235,7 +235,7 @@ def init():
         where _Vocab_key = 95
         and isObsolete = 0''', 'auto')
     for r in results:
-        evidenceDict[r['abbreviation']] = r['_Term_key']
+        evidenceDict[r['abbreviation'].lower()] = r['_Term_key']
 
     # Reference lookup
     results = db.sql('''select a.accid, a._Object_key
@@ -246,7 +246,7 @@ def init():
         and a.private = 0
 	and a.prefixPart = 'J:' ''', 'auto')
     for r in results:
-        jNumDict[r['accid']] = r['_Object_key']
+        jNumDict[r['accid'].lower()] = r['_Object_key']
 
     # marker lookup
     results = db.sql('''select a.accid, a._Object_key
@@ -256,14 +256,14 @@ def init():
         and a.preferred = 1
         and a.private = 0''', 'auto')
     for r in results:
-        markerDict[r['accid']] = r['_Object_key']
+        markerDict[r['accid'].lower()] = r['_Object_key']
 
     # active status (not data load or inactive)
     results = db.sql('''select login, _User_key
 	from MGI_User
 	where _UserStatus_key = 316350''', 'auto')
     for r in results:
-	userDict[r['login']] = r['_User_key']
+	userDict[r['login'].lower()] = r['_User_key']
 
     # property term lookup
 
@@ -373,10 +373,11 @@ def createFiles( ):
 
     line = fpInFile.readline()
     while line:
-	# added quick cleanup to remove leading & trailing spaces from fields
 
-	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note) = map(string.strip, string.split(line, TAB)[:13])
-	remainingTokens = map(string.strip, string.split(line, TAB))[13:]
+	# get the first 13 lines - these are fixed columns, mapping to lower case
+	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note) = map(string.lower, map(string.strip, string.split(line, TAB))[:13])
+
+	remainingTokens = map(string.lower, map(string.strip, string.split(line, TAB))[13:])
 
 	#print '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s' % (action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note)
 
