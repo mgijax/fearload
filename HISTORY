@@ -1,3 +1,15 @@
+TAG: fearload-5-1-7-17
+DATE: 05/09/2014
+STAFF: sc
+CHANGES: US51 - support for organizer allele
+1) fearload.py - support for allele as organizer
+2) fearQC.sh - added mgi type of organizer and participant to temp table
+3) fearQC.py - support for mutation_involves QC checks
+a) split ID checking into the following functions:
+* def qcInvalidMgiPrefix() 
+* qcOrgAllelePartMarker()
+* qcOrgMarkerPartMarker()
+
 TAG: fearload-5-1-7-16
 DATE: 05/08/2014
 STAFF: sc

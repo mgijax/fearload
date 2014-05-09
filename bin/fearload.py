@@ -118,7 +118,7 @@ relationshipDict = {}
 # qualifier term lookup {term:key, ...}
 qualifierDict = {}
 # default when qualifier is blank in the input file
-defaultQual = 'Not Specified'
+defaultQual = 'not specified'
 
 # evidence term lookup {term:key, ...}
 evidenceDict = {}
@@ -128,6 +128,9 @@ jNumDict = {}
 
 # marker lookup {mgiID:key, ...)
 markerDict = {}
+
+# allele lookup {mgiID:key, ...)
+alleleDict = {}
 
 # MGI_User lookup {userLogin:key, ...}
 userDict = {}
@@ -159,7 +162,7 @@ def init():
     global nextRelationshipKey, nextPropertyKey, nextNoteKey
     global categoryDict, relationshipDict, propertyDict
     global qualifierDict, evidenceDict, jNumDict, userDict, markerDict
-    
+    global alleleDict
     openFiles()
     #
     # create database connection
@@ -257,6 +260,16 @@ def init():
         and a.private = 0''', 'auto')
     for r in results:
         markerDict[r['accid'].lower()] = r['_Object_key']
+
+    # allele lookup
+    results = db.sql('''select a.accid, a._Object_key
+        from ACC_Accession a
+        where a._MGIType_key = 11
+        and a._LogicalDB_key = 1
+        and a.preferred = 1
+        and a.private = 0''', 'auto')
+    for r in results:
+        alleleDict[r['accid'].lower()] = r['_Object_key']
 
     # active status (not data load or inactive)
     results = db.sql('''select login, _User_key
@@ -374,14 +387,11 @@ def createFiles( ):
     line = fpInFile.readline()
     while line:
 
-	# get the first 13 lines - these are fixed columns, mapping to lower case
+ 	# get the first 13 lines - these are fixed columns, mapping to lower case
 	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note) = map(string.lower, map(string.strip, string.split(line, TAB))[:13])
-
 	remainingTokens = map(string.lower, map(string.strip, string.split(line, TAB))[13:])
 
 	#print '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s' % (action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note)
-
-	# added more info to line-by-line debugging
 
 	if categoryDict.has_key(cat):
 	    c = categoryDict[cat]
@@ -389,16 +399,36 @@ def createFiles( ):
 	else:
 	    print 'category (%s) not found in line ' % (cat, line)
 	    continue
-	if markerDict.has_key(obj1Id):
-	    objKey1 = markerDict[obj1Id]
+	if c.mgiTypeKey1 == 2:
+	    if markerDict.has_key(obj1Id):
+		objKey1 = markerDict[obj1Id]
+	    else:
+		print 'Organizer marker ID (%s) not found in line %s' % (obj1Id, line)
+		continue
+	elif c.mgiTypeKey1 == 11:
+	    if alleleDict.has_key(obj1Id):
+                objKey1 = alleleDict[obj1Id]
+            else:
+                print 'Organizer Allele ID (%s) on line %s not found' % (obj1Id, line)
+                continue
 	else:
-	    print 'marker1 (%s) not found in line %s' % (obj1Id, line)
-	    continue
-	if markerDict.has_key(obj2Id):
-	    objKey2 = markerDict[obj2Id]
+	    print 'Organizer mgiType not supported in line %s' % (obj1Id, line)
+
+	if c.mgiTypeKey2 == 2:
+	    if markerDict.has_key(obj2Id):
+		objKey2 = markerDict[obj2Id]
+	    else:
+		print 'Participant marker ID (%s) not found in line %s' % (obj2Id, line)
+		continue
+	elif c.mgiTypeKey2 == 11:
+            if alleleDict.has_key(obj2Id):
+                objKey1 = alleleDict[obj2Id]
+            else:
+                print 'Participant allele ID (%s) not found in line %s' % (obj1Id, line)
+                continue
 	else:
-	    print 'marker2 (%s) not found in line %s' % (obj2Id, line)
-	    continue
+	    print 'Participant mgiType not supported in line %s' % (obj2Id, line)
+
 	if relationshipDict.has_key(relId):
 	    relKey = relationshipDict[relId]
 	else:
