@@ -396,7 +396,7 @@ def qcOrgAllelePartMarker():
                   where tmp._Object_key = a2._Object_key
                         and a2._MGIType_key = tmp.mgiID1TypeKey
                         and a2._LogicalDB_key = 1
-                        and a2.preferred = 0
+                        and a2.preferred = 1
 			order by tmp.mgiID1''' 
  
     print 'running sql for results3 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
@@ -659,7 +659,7 @@ def qcOrgMarkerPartMarker():
                   where tmp._Object_key = a2._Object_key
                         and a2._MGIType_key = tmp.mgiID1TypeKey
                         and a2._LogicalDB_key = 1
-                        and a2.preferred = 0
+                        and a2.preferred = 1
 		  order by tmp.mgiID1''' 
     print 'running sql for results3 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
     results3 = db.sql(cmds, 'auto')
@@ -895,9 +895,8 @@ def runQcChecks ():
 	sys.exit(2)
 
     line = fpInput.readline()
+    lineCt += 1
     while line:
-	lineCt += 1
-
 	# get the first 13 lines - these are fixed columns
 	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note) = map(string.lower, map(string.strip, string.split(line, TAB))[:13])
         remainingTokens = map(string.lower, map(string.strip, string.split(line
