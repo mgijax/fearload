@@ -428,7 +428,7 @@ def qcOrgAllelePartMarker():
     print 'running sql for results4 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
     results4 = db.sql(cmds, 'auto')
     
-    cmds = '''select tmp.mgiID1 as org, tmp.mgiID2 as part, 
+    cmds = '''select distinct tmp.mgiID1 as org, tmp.mgiID2 as part, 
 		    mo.chromosome as oChr, mp.chromosome as pChr
 		from tempdb..%s tmp,
 		ALL_Allele a, MRK_Marker mo, MRK_Marker mp, ACC_Accession ao, ACC_Accession ap
