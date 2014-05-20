@@ -454,7 +454,7 @@ def qcOrgAllelePartMarker():
         fpQcRpt.write(CRT + CRT + string.center('Invalid Allele/Marker Relationships',80) + CRT)
         fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
              ('MGI ID','Object Type',
-              'Allele Status','Reason',CRT))
+              'Status','Reason',CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + \
               20*'-' + '  ' + 30*'-' + CRT)
 
@@ -695,7 +695,7 @@ def qcOrgMarkerPartMarker():
         fpQcRpt.write(CRT + CRT + string.center('Invalid Marker/Marker Relationships',80) + CRT)
         fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
              ('MGI ID','Object Type',
-              'Marker Status','Reason',CRT))
+              'Status','Reason',CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + \
               20*'-' + '  ' + 30*'-' + CRT)
  
