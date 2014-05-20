@@ -499,7 +499,7 @@ def qcOrgAllelePartMarker():
         elif alleleStatus == '':
             reason = 'Participant exists for non-marker'
         else:
-            reason = 'Participant allele status is invalid'
+            reason = 'Participant marker status is invalid'
 
         fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
             (participant, objectType, alleleStatus, reason, CRT))
