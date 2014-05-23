@@ -245,27 +245,11 @@ use tempdb
 go
 
 create table ${MGI_ID_TEMP_TABLE} (
-    mgiID1 varchar(80) not null,
+    mgiID1 int not null,
     mgiID1TypeKey int not null,
-    mgiID2 varchar(80) not null,
+    mgiID2 int not null,
     mgiID2TypeKey int not null,
-    category varchar(255) not null
 )
-go
-
-create index idx1 on ${MGI_ID_TEMP_TABLE} (mgiID1)
-go
-
-create index idx2 on ${MGI_ID_TEMP_TABLE} (mgiID1TypeKey)
-go
-
-create index idx3 on ${MGI_ID_TEMP_TABLE} (mgiID2)
-go
-
-create index idx4 on ${MGI_ID_TEMP_TABLE} (mgiID2TypeKey)
-go
-
-create index idx5 on ${MGI_ID_TEMP_TABLE} (category)
 go
 
 grant all on  ${MGI_ID_TEMP_TABLE} to public

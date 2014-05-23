@@ -75,7 +75,7 @@ idTempTable = os.environ['MGI_ID_TEMP_TABLE']
 # 1 if QC errors
 hasFatalErrors = 0
 
-# category lookup {name:Category object, ...}
+# category lookup {name:query result set, ...}
 categoryDict = {}
 
 # relationship term lookup {term:key, ...}
@@ -101,6 +101,10 @@ mgiPrefix = 'mgi:'
 
 # columns 1-numNonPropCol may NOT include properties
 numNonPropCol=13
+
+# MGI IDs with no ':'
+badIdDict = {}
+
 #
 # Purpose: Validate the arguments to the script.
 # Returns: Nothing
@@ -298,11 +302,13 @@ def qcOrgAllelePartMarker():
 		and tmp.mgiID2TypeKey = 2
                 and not exists(select 1
                 from ACC_Accession a
-                where a.accID = tmp.mgiID1)
+                where a.numericPart = tmp.mgiID1
+		and a.prefixPart = 'MGI:')
                 union
                 select tmp.mgiID1, t.name, null "status"
                 from tempdb..%s tmp, ACC_Accession a1, ACC_MGIType t
-                where a1.accID = tmp.mgiID1
+                where a1.numericPart = tmp.mgiID1
+		and a1.prefixPart = 'MGI:'
                 and tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
                 and a1._LogicalDB_key = 1
@@ -310,14 +316,16 @@ def qcOrgAllelePartMarker():
                 and a1._MGIType_key = t._MGIType_key
                 and not exists (select 1
                         from ACC_Accession a2
-                        where a2.accID = tmp.mgiID1
+                        where a2.numericPart = tmp.mgiID1
+			and a2.prefixPart = 'MGI:'
                         and a2._LogicalDB_key = 1
                         and a2._MGIType_key = 11)
                 union
                 select tmp.mgiID1, t.name, vt.term as status
                 from tempdb..%s tmp,ACC_Accession a, ACC_MGIType t,
                         ALL_Allele aa, VOC_Term vt
-                where a.accID = tmp.mgiID1
+                where a.numericPart = tmp.mgiID1
+		and a.prefixPart = 'MGI:'
                 and tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
                 and a._LogicalDB_key = 1
@@ -333,7 +341,7 @@ def qcOrgAllelePartMarker():
 
     # Participant MGI ID does not exist in the database
     # union
-    # Participant MGI ID exists in the database for non-marker object(s)
+    # Participant MGI ID exists in the database for non-allele object(s)
     # union
     # Participant  has invalid status
 
@@ -343,11 +351,13 @@ def qcOrgAllelePartMarker():
 		and tmp.mgiID2TypeKey = 2
                 and not exists(select 1
                 from ACC_Accession a
-                where a.accID = tmp.mgiID2)
+                where a.numericPart = tmp.mgiID2
+		and a.prefixPart = 'MGI:')
                 union
                 select tmp.mgiID2, t.name, null "status"
                 from tempdb..%s tmp, ACC_Accession a1, ACC_MGIType t
-                where a1.accID = tmp.mgiID2
+                where a1.numericPart = tmp.mgiID2
+		and a1.prefixPart = 'MGI:'
                 and tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
                 and a1._LogicalDB_key = 1
@@ -355,14 +365,16 @@ def qcOrgAllelePartMarker():
                 and a1._MGIType_key = t._MGIType_key
                 and not exists (select 1
                         from ACC_Accession a2
-                        where a2.accID = tmp.mgiID2
+                        where a2.numericPart = tmp.mgiID2
+			and a2.prefixPart = 'MGI:'
                         and a2._LogicalDB_key = 1
                         and a2._MGIType_key = 2)
                 union
                 select tmp.mgiID2, t.name, ms.status
                 from tempdb..%s tmp,ACC_Accession a, ACC_MGIType t,
                         MRK_Marker m, MRK_Status ms
-                where a.accID = tmp.mgiID2
+                where a.numericPart = tmp.mgiID2
+		and a.prefixPart = 'MGI:'
                 and tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
                 and a._MGIType_key = tmp.mgiID2TypeKey
@@ -382,7 +394,8 @@ def qcOrgAllelePartMarker():
                   from tempdb..%s tmp,
                        ACC_Accession a1,
                        ALL_Allele aa
-                  where tmp.mgiID1 = a1.accID
+                  where tmp.mgiID1 = a1.numericPart
+			and a1.prefixPart = 'MGI:'
                         and tmp.mgiID1TypeKey = 11
                         and tmp.mgiID2TypeKey = 2
                         and a1._MGIType_key = tmp.mgiID1TypeKey
@@ -408,7 +421,8 @@ def qcOrgAllelePartMarker():
                   from tempdb..%s tmp,
                        ACC_Accession a1,
                        ALL_Allele aa
-                  where tmp.mgiID2 = a1.accID
+                  where tmp.mgiID2 = a1.numericPart
+			and a1.prefixPart = 'MGI:'
                         and tmp.mgiID1TypeKey = 11
                         and tmp.mgiID2TypeKey = 2
                         and a1._MGIType_key = tmp.mgiID2TypeKey
@@ -434,12 +448,16 @@ def qcOrgAllelePartMarker():
 		ALL_Allele a, MRK_Marker mo, MRK_Marker mp, ACC_Accession ao, ACC_Accession ap
 		where tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
-		and tmp.mgiID1 = ao.accID
+		and tmp.mgiID1 != 0
+		and tmp.mgiID1 = ao.numericPart
+		and ao.prefixPart = 'MGI:'
 		and ao._MGIType_key =  tmp.mgiID1TypeKey
 		and ao.preferred = 1
 		and ao._Object_key = a._Allele_key
 		and a._Marker_key = mo._Marker_key
-		and tmp.mgiID2 = ap.accID
+		and tmp.mgiID2 != 0
+		and tmp.mgiID2 = ap.numericPart
+		and ap.prefixPart = 'MGI:'
 		and ap._MGIType_key =  tmp.mgiID2TypeKey
                 and ap.preferred = 1
 		and ap._Object_key = mp._Marker_key
@@ -462,7 +480,7 @@ def qcOrgAllelePartMarker():
     # Write MGI ID1 records to the report.
     #
     for r in results1:
-        organizer = r['mgiID1']
+        organizer = 'MGI:%s' % r['mgiID1']
         objectType = r['name']
         alleleStatus = r['status']
 
@@ -485,7 +503,7 @@ def qcOrgAllelePartMarker():
     # Write MGI ID2 records to the report.
     #
     for r in results2:
-        participant = r['mgiID2']
+        participant = 'MGI:%s' % r['mgiID2']
         objectType = r['name']
         alleleStatus = r['status']
 
@@ -515,7 +533,7 @@ def qcOrgAllelePartMarker():
 
         # report Organizer discrepancies
         for r in results3:
-            sMgiID = r['mgiID1']
+            sMgiID = 'MGI:%s' % r['mgiID1']
             symbol = r['symbol']
             pMgiID = r['accID']
             which = 'Organizer'
@@ -523,7 +541,7 @@ def qcOrgAllelePartMarker():
                 (sMgiID, symbol, pMgiID, which,  CRT))
         # report Participant discrepancies
         for r in results4:
-            sMgiID = r['mgiID2']
+            sMgiID = 'MGI:%s' % r['mgiID2']
             symbol = r['symbol']
             pMgiID = r['accID']
             which = 'Participant'
@@ -541,7 +559,7 @@ def qcOrgAllelePartMarker():
 	# report Chromosome mismatch between Organizer and Participant
 	for r in results5:
 	    fpQcRpt.write('%-20s  %-20s  %-20s  %-20s%s' %
-	    (r['org'], r['oChr'], r['part'], r['pChr'],  CRT))
+	    ('MGI:%s' % r['org'], r['oChr'], 'MGI:%s' % r['part'], r['pChr'],  CRT))
 
     db.useOneConnection(0)
 #
@@ -568,11 +586,13 @@ def qcOrgMarkerPartMarker():
 		and tmp.mgiID2TypeKey = 2
 		and not exists(select 1
 		from ACC_Accession a
-		where a.accID = tmp.mgiID1)
+		where a.numericPart = tmp.mgiID1
+		and a.prefixPart = 'MGI:')
 		union
 	  	select tmp.mgiID1, t.name, null "status"
 		from tempdb..%s tmp, ACC_Accession a1, ACC_MGIType t
-		where a1.accID = tmp.mgiID1 
+		where a1.numericPart = tmp.mgiID1 
+		and a1.prefixPart = 'MGI:'
 		and tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
 		and a1._LogicalDB_key = 1
@@ -580,14 +600,16 @@ def qcOrgMarkerPartMarker():
 		and a1._MGIType_key = t._MGIType_key
 		and not exists (select 1 
 			from ACC_Accession a2
-			where a2.accID = tmp.mgiID1
+			where a2.numericPart = tmp.mgiID1
+			and a2.prefixPart = 'MGI:'
 			and a2._LogicalDB_key = 1
 			and a2._MGIType_key = 2)
 		union
 		select tmp.mgiID1, t.name, ms.status
 		from tempdb..%s tmp,ACC_Accession a, ACC_MGIType t,
 			MRK_Marker m, MRK_Status ms
-		where a.accID = tmp.mgiID1 
+		where a.numericPart = tmp.mgiID1 
+		and a.prefixPart = 'MGI:'
 		and tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
 		and a._LogicalDB_key = 1
@@ -607,11 +629,13 @@ def qcOrgMarkerPartMarker():
 		and tmp.mgiID2TypeKey = 2
                 and not exists(select 1
                 from ACC_Accession a
-                where a.accID = tmp.mgiID2)
+                where a.numericPart = tmp.mgiID2
+		and a.prefixPart = 'MGI:')
                 union
                 select tmp.mgiID2, t.name, null "status"
                 from tempdb..%s tmp, ACC_Accession a1, ACC_MGIType t
-                where a1.accID = tmp.mgiID2
+                where a1.numericPart = tmp.mgiID2
+		and a1.prefixPart = 'MGI:'
 		and tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
                 and a1._LogicalDB_key = 1
@@ -619,14 +643,16 @@ def qcOrgMarkerPartMarker():
 		and a1._MGIType_key = t._MGIType_key
                 and not exists (select 1
                         from ACC_Accession a2
-                        where a2.accID = tmp.mgiID2
+                        where a2.numericPart = tmp.mgiID2
+			and a2.prefixPart = 'MGI:'
                         and a2._LogicalDB_key = 1
                         and a2._MGIType_key = 2)
                 union
                 select tmp.mgiID2, t.name, ms.status
                 from tempdb..%s tmp,ACC_Accession a, ACC_MGIType t,
                         MRK_Marker m, MRK_Status ms
-                where a.accID = tmp.mgiID2
+                where a.numericPart = tmp.mgiID2
+		and a.prefixPart = 'MGI:'
 		and tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
 		and a._MGIType_key = tmp.mgiID2TypeKey
@@ -645,7 +671,8 @@ def qcOrgMarkerPartMarker():
                 from tempdb..%s tmp,
                    ACC_Accession a1,
                    MRK_Marker m
-                where tmp.mgiID1 = a1.accID
+                where tmp.mgiID1 = a1.numericPart
+		    and a1.prefixPart = 'MGI:'
                     and tmp.mgiID1TypeKey = 2
                     and tmp.mgiID2TypeKey = 2
                     and a1._MGIType_key = tmp.mgiID1TypeKey
@@ -669,7 +696,8 @@ def qcOrgMarkerPartMarker():
                 from tempdb..%s tmp,
                    ACC_Accession a1,
                    MRK_Marker m
-                where tmp.mgiID2 = a1.accID
+                where tmp.mgiID2 = a1.numericPart
+		    and a1.prefixPart = 'MGI:'
                     and tmp.mgiID1TypeKey = 2
                     and tmp.mgiID2TypeKey = 2
                     and a1._MGIType_key = tmp.mgiID2TypeKey
@@ -683,7 +711,7 @@ def qcOrgMarkerPartMarker():
                   where tmp._Object_key = a2._Object_key
                         and a2._MGIType_key = tmp.mgiID2TypeKey
                         and a2._LogicalDB_key = 1
-                        and a2.preferred = 0
+                        and a2.preferred = 1
                   order by tmp.mgiID2'''
 
     print 'running sql for results4 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
@@ -703,7 +731,7 @@ def qcOrgMarkerPartMarker():
     # Write MGI ID1 records to the report.
     #
     for r in results1:
-        organizer = r['mgiID1']
+        organizer = 'MGI:%s' % r['mgiID1']
         objectType = r['name']
         markerStatus = r['status']
 
@@ -726,7 +754,7 @@ def qcOrgMarkerPartMarker():
     # Write MGI ID2 records to the report.
     #
     for r in results2:
-        participant = r['mgiID2']
+        participant = 'MGI:%s' % r['mgiID2']
         objectType = r['name']
         markerStatus = r['status']
 
@@ -756,7 +784,7 @@ def qcOrgMarkerPartMarker():
 
 	# report Organizer discrepancies
 	for r in results3:
-	    sMgiID = r['mgiID1']
+	    sMgiID = 'MGI:%s' % r['mgiID1']
 	    symbol = r['symbol']
 	    pMgiID = r['accID']
 	    which = 'Organizer'
@@ -764,28 +792,22 @@ def qcOrgMarkerPartMarker():
 		(sMgiID, symbol, pMgiID, which,  CRT))
 	# report Participant discrepancies
 	for r in results4:
-	    sMgiID = r['mgiID2']
+	    sMgiID = 'MGI:%s' % r['mgiID2']
 	    symbol = r['symbol']
 	    pMgiID = r['accID']
 	    which = 'Participant'
 	    fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
 		(sMgiID, symbol, pMgiID, which,  CRT))
     db.useOneConnection(0)
+
 def qcInvalidMgiPrefix ():
     global hasFatalErrors
+
     # IDs w/o proper MGI ID prefix
+    print 'processing bad MGI IDs %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
     badIdList = []
-    print 'querying qcInvalidMgiPrefix %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
-    results1 = db.sql('''select mgiID1 as organizer, mgiID2 as participant
-                from tempdb..%s tmp''' % idTempTable, 'auto')
-    print 'done querying qcInvalidMgiPrefix %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
-    for r in results1:
-	if string.find(r['organizer'].lower(), mgiPrefix ) == -1:
-	    #print 'organizer not mgi id'
-	    badIdList.append('%-12s  %-20s' % (r['organizer'], 'Organizer'))
-	if string.find(r['participant'].lower(), mgiPrefix ) == -1:
-	    #print 'participant not mgi id'
-	    badIdList.append('%-12s  %-20s' % (r['participant'], 'Participant'))
+    for id in badIdDict.keys():
+	badIdList.append('%-12s  %-20s' % (id, badIdDict[id]))
 
     #
     # Write bad MGI IDs to report
@@ -897,6 +919,7 @@ def runQcChecks ():
     line = fpInput.readline()
     lineCt += 1
     while line:
+
 	# get the first 13 lines - these are fixed columns
 	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note) = map(string.lower, map(string.strip, string.split(line, TAB))[:13])
         remainingTokens = map(string.lower, map(string.strip, string.split(line
@@ -1106,6 +1129,7 @@ def closeFiles ():
     return
 
 def loadTempTables ():
+    global badIdDict
 
     print 'Create a bcp file from relationship input file'
     sys.stdout.flush()
@@ -1128,13 +1152,49 @@ def loadTempTables ():
     while line:
 	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note) = map(string.strip, string.split(line, TAB))[:13]
 	if not categoryDict.has_key(cat):
-	    print 'FATAL ERROR Category: %s does not exist' % cat
-	    sys.exit(1)
-	    
-	obj1IdTypeKey = categoryDict[cat]['_MGIType_key_1']
-	#print 'obj1IdTypeKey: %s' % obj1IdTypeKey
-	obj2IdTypeKey = categoryDict[cat]['_MGIType_key_2']
-	fpIDBCP.write('%s%s%s%s%s%s%s%s%s%s' % (obj1Id, TAB, obj1IdTypeKey, TAB, obj2Id, TAB, obj2IdTypeKey, TAB, cat, CRT))
+            print 'FATAL ERROR Category: %s does not exist' % cat
+            sys.exit(1)
+
+	badIdOrg = 0
+	badIdPart = 0
+	obj1IdInt = 0
+	obj2IdInt = 0
+	#print line
+	# ID must have ':', suffix must exist, prefix must be 'MGI'
+	if obj1Id.find(':') == -1 or len(obj1Id.split(':')[1]) == 0 or obj1Id.split(':')[0] != 'MGI':
+	    badIdDict[obj1Id] = 'Organizer'
+	    badIdOrg = 1
+	    print 'badId Organizer: %s' % obj1Id
+	else:
+	    obj1IdInt = obj1Id.split(':')[1]
+	    # suffix must be integer
+            try:
+                int(obj1IdInt)
+            except:	# if suffix not integer assign it 0  so we can load something into db
+			# we'll filter it out later
+                badIdDict[obj1Id] = 'Organizer'
+	# ID must have ':', suffix must exist, prefix must be 'MGI'
+	if obj2Id.find(':') == -1 or len(obj2Id.split(':')[1]) == 0 or  obj2Id.split(':')[0] != 'MGI':
+            badIdDict[obj2Id] = 'Participant'
+            badIdPart = 1
+	    print 'badId Participant %s' % obj2Id
+	else:
+            obj2IdInt = obj2Id.split(':')[1]
+	    # suffix must be integer
+            try:
+                int(obj2IdInt)
+            except:	# if suffix not integer assign it 0 so we can load something into db
+			# we'll filter it out later
+                badIdDict[obj2Id] = 'Organizer'
+	# if we have at least one good ID, load into temp table, a bad id will be zero
+	if not (badIdOrg and badIdPart):
+	    # get the MGI Types
+	    obj1IdTypeKey = categoryDict[cat]['_MGIType_key_1']
+	    obj2IdTypeKey = categoryDict[cat]['_MGIType_key_2']
+
+	    #print 'obj1Id: %s obj1IdInt: %s' % (obj1Id, obj1IdInt)
+	    #print 'obj2Id: %s obj2IdInt: %s' % (obj2Id, obj2IdInt)
+	    fpIDBCP.write('%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, CRT))
         line = fp.readline()
 
     #
@@ -1153,6 +1213,12 @@ def loadTempTables ():
     if rc <> 0:
         closeFiles()
         sys.exit(1)
+    
+    db.sql('''create index idx1 on tempdb..%s (mgiID1)''' % idTempTable, None)
+    db.sql('''create index idx2 on tempdb..%s (mgiID1TypeKey)'''  % idTempTable, None)
+    db.sql('''create index idx3 on tempdb..%s (mgiID2)''' % idTempTable, None)
+    db.sql('''create index idx4 on tempdb..%s (mgiID2TypeKey)''' % idTempTable, None)
+    #db.sql('''grant all on tempdb..%s to public''' % idTempTable, None)
 
     return
 

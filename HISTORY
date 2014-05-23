@@ -1,3 +1,12 @@
+TAG: fearload-5-1-7-22
+DATE: 05/23/2014
+STAFF: sc
+CHANGES: US138 - rework tempdb and how QC queries done in tempdb
+- fearQC.sh - tempdb, all ints, move indexing to python	
+- fearQC.py - do some MGI ID checking outside of db e.g. can't add a numeric
+   part of MGI1234 or XP_789 to tempdb because no colon to split on. create
+   tempdb indexes after loading tempdb
+
 TAG: fearload-5-1-7-21
 TAG: fearload-5-1-7-20
 DATE: 05/14/2014
