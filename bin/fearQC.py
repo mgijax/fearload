@@ -1164,7 +1164,7 @@ def loadTempTables ():
 	if obj1Id.find(':') == -1 or len(obj1Id.split(':')[1]) == 0 or obj1Id.split(':')[0] != 'MGI':
 	    badIdDict[obj1Id] = 'Organizer'
 	    badIdOrg = 1
-	    print 'badId Organizer: %s' % obj1Id
+	    #print 'badId Organizer: %s' % obj1Id
 	else:
 	    obj1IdInt = obj1Id.split(':')[1]
 	    # suffix must be integer
@@ -1173,11 +1173,13 @@ def loadTempTables ():
             except:	# if suffix not integer assign it 0  so we can load something into db
 			# we'll filter it out later
                 badIdDict[obj1Id] = 'Organizer'
+		badIdOrg = 1
+		obj1IdInt = 0
 	# ID must have ':', suffix must exist, prefix must be 'MGI'
 	if obj2Id.find(':') == -1 or len(obj2Id.split(':')[1]) == 0 or  obj2Id.split(':')[0] != 'MGI':
             badIdDict[obj2Id] = 'Participant'
             badIdPart = 1
-	    print 'badId Participant %s' % obj2Id
+	    #print 'badId Participant %s' % obj2Id
 	else:
             obj2IdInt = obj2Id.split(':')[1]
 	    # suffix must be integer
@@ -1185,7 +1187,9 @@ def loadTempTables ():
                 int(obj2IdInt)
             except:	# if suffix not integer assign it 0 so we can load something into db
 			# we'll filter it out later
-                badIdDict[obj2Id] = 'Organizer'
+                badIdDict[obj2Id] = 'Organizer'		
+		badIdPart = 1
+		obj2IdInt = 0
 	# if we have at least one good ID, load into temp table, a bad id will be zero
 	if not (badIdOrg and badIdPart):
 	    # get the MGI Types
