@@ -300,6 +300,7 @@ def qcOrgAllelePartMarker():
                 from tempdb..%s tmp
                 where tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
+		and tmp.mgiID1 != 0
                 and not exists(select 1
                 from ACC_Accession a
                 where a.numericPart = tmp.mgiID1
@@ -312,6 +313,7 @@ def qcOrgAllelePartMarker():
                 and tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
                 and a1._LogicalDB_key = 1
+		and tmp.mgiID1 != 0
                 and a1._MGIType_key != tmp.mgiID1TypeKey
                 and a1._MGIType_key = t._MGIType_key
                 and not exists (select 1
@@ -329,6 +331,7 @@ def qcOrgAllelePartMarker():
                 and tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
                 and a._LogicalDB_key = 1
+		and tmp.mgiID1 != 0
                 and a._MGIType_key = tmp.mgiID1TypeKey
                 and a._MGIType_key = t._MGIType_key
                 and a._Object_key = aa._Allele_key
@@ -349,6 +352,7 @@ def qcOrgAllelePartMarker():
                 from tempdb..%s tmp
                 where tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
+		and tmp.mgiID2 != 0
                 and not exists(select 1
                 from ACC_Accession a
                 where a.numericPart = tmp.mgiID2
@@ -360,6 +364,7 @@ def qcOrgAllelePartMarker():
 		and a1.prefixPart = 'MGI:'
                 and tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
+		and tmp.mgiID2 != 0
                 and a1._LogicalDB_key = 1
                 and a1._MGIType_key != tmp.mgiID2TypeKey
                 and a1._MGIType_key = t._MGIType_key
@@ -377,6 +382,7 @@ def qcOrgAllelePartMarker():
 		and a.prefixPart = 'MGI:'
                 and tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
+		and tmp.mgiID2 != 0
                 and a._MGIType_key = tmp.mgiID2TypeKey
                 and a._LogicalDB_key = 1
                 and a._MGIType_key = t._MGIType_key
@@ -584,6 +590,7 @@ def qcOrgMarkerPartMarker():
 		from tempdb..%s tmp
 		where tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
+		and tmp.mgiID1 != 0
 		and not exists(select 1
 		from ACC_Accession a
 		where a.numericPart = tmp.mgiID1
@@ -596,6 +603,7 @@ def qcOrgMarkerPartMarker():
 		and tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
 		and a1._LogicalDB_key = 1
+		and tmp.mgiID1 != 0
 		and a1._MGIType_key != tmp.mgiID1TypeKey
 		and a1._MGIType_key = t._MGIType_key
 		and not exists (select 1 
@@ -612,6 +620,7 @@ def qcOrgMarkerPartMarker():
 		and a.prefixPart = 'MGI:'
 		and tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
+		and tmp.mgiID1 != 0
 		and a._LogicalDB_key = 1
 		and a._MGIType_key = tmp.mgiID1TypeKey
 		and a._MGIType_key = t._MGIType_key
@@ -627,6 +636,7 @@ def qcOrgMarkerPartMarker():
                 from tempdb..%s tmp
 		where tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
+		and tmp.mgiID2 != 0
                 and not exists(select 1
                 from ACC_Accession a
                 where a.numericPart = tmp.mgiID2
@@ -638,6 +648,7 @@ def qcOrgMarkerPartMarker():
 		and a1.prefixPart = 'MGI:'
 		and tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
+		and tmp.mgiID2 != 0
                 and a1._LogicalDB_key = 1
                 and a1._MGIType_key != tmp.mgiID2TypeKey
 		and a1._MGIType_key = t._MGIType_key
@@ -655,6 +666,7 @@ def qcOrgMarkerPartMarker():
 		and a.prefixPart = 'MGI:'
 		and tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
+		and tmp.mgiID2 != 0
 		and a._MGIType_key = tmp.mgiID2TypeKey
                 and a._LogicalDB_key = 1
                 and a._MGIType_key = t._MGIType_key
