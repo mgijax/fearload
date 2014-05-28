@@ -1,3 +1,12 @@
+TAG: fearload-5-1-7-25
+DATE: 05/28/2014
+STAFF: sc
+CHANGES: US60 - enhance performance of QC script
+1)fearQC.py - 
+a) stop using #temp tables
+b) use explicit MgiType keys (don't join)
+c) break up unioned queries into individual queries
+
 TAG: fearload-5-1-7-24
 DATE: 05/23/2014
 STAFF: sc

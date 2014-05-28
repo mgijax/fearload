@@ -52,6 +52,7 @@ import re
 import mgi_utils
 import db
 import time
+import Set
 
 #
 #  CONSTANTS
@@ -305,16 +306,19 @@ def qcOrgAllelePartMarker():
                 from ACC_Accession a
                 where a.numericPart = tmp.mgiID1
 		and a.prefixPart = 'MGI:')
-                union
-                select tmp.mgiID1, t.name, null "status"
+		order by tmp.mgiID1''' % idTempTable
+    print 'running sql for results1a %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    results1a = db.sql(cmds, 'auto')
+
+    cmds = '''select tmp.mgiID1, t.name, null "status"
                 from tempdb..%s tmp, ACC_Accession a1, ACC_MGIType t
                 where a1.numericPart = tmp.mgiID1
 		and a1.prefixPart = 'MGI:'
                 and tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
                 and a1._LogicalDB_key = 1
-		and tmp.mgiID1 != 0
-                and a1._MGIType_key != tmp.mgiID1TypeKey
+		and tmp.mgiID1 > 0
+                and a1._MGIType_key != 11
                 and a1._MGIType_key = t._MGIType_key
                 and not exists (select 1
                         from ACC_Accession a2
@@ -322,8 +326,11 @@ def qcOrgAllelePartMarker():
 			and a2.prefixPart = 'MGI:'
                         and a2._LogicalDB_key = 1
                         and a2._MGIType_key = 11)
-                union
-                select tmp.mgiID1, t.name, vt.term as status
+		order by tmp.mgiID1''' % idTempTable
+    print 'running sql for results1b %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    results1b = db.sql(cmds, 'auto')
+
+    cmds = '''select tmp.mgiID1, t.name, vt.term as status
                 from tempdb..%s tmp,ACC_Accession a, ACC_MGIType t,
                         ALL_Allele aa, VOC_Term vt
                 where a.numericPart = tmp.mgiID1
@@ -331,16 +338,17 @@ def qcOrgAllelePartMarker():
                 and tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
                 and a._LogicalDB_key = 1
-		and tmp.mgiID1 != 0
-                and a._MGIType_key = tmp.mgiID1TypeKey
+		and tmp.mgiID1 > 0
+                and a._MGIType_key = 11
                 and a._MGIType_key = t._MGIType_key
                 and a._Object_key = aa._Allele_key
                 and aa._Allele_Status_key not in (847114, 3983021)
                 and aa._Allele_Status_key = vt._Term_key
-                order by tmp.mgiID1''' % (idTempTable, idTempTable, idTempTable)
+                order by tmp.mgiID1''' % idTempTable
+
     #print cmds
-    print 'running sql for results1 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
-    results1 = db.sql(cmds, 'auto')
+    print 'running sql for results1c %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    results1c = db.sql(cmds, 'auto')
 
     # Participant MGI ID does not exist in the database
     # union
@@ -352,21 +360,24 @@ def qcOrgAllelePartMarker():
                 from tempdb..%s tmp
                 where tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
-		and tmp.mgiID2 != 0
+		and tmp.mgiID2 > 0
                 and not exists(select 1
                 from ACC_Accession a
                 where a.numericPart = tmp.mgiID2
 		and a.prefixPart = 'MGI:')
-                union
-                select tmp.mgiID2, t.name, null "status"
+		order by tmp.mgiID2''' % idTempTable
+    print 'running sql for results2a %s ' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    results2a = db.sql(cmds, 'auto')
+ 
+    cmds = '''select tmp.mgiID2, t.name, null "status"
                 from tempdb..%s tmp, ACC_Accession a1, ACC_MGIType t
                 where a1.numericPart = tmp.mgiID2
 		and a1.prefixPart = 'MGI:'
                 and tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
-		and tmp.mgiID2 != 0
+		and tmp.mgiID2 > 0
                 and a1._LogicalDB_key = 1
-                and a1._MGIType_key != tmp.mgiID2TypeKey
+                and a1._MGIType_key != 2
                 and a1._MGIType_key = t._MGIType_key
                 and not exists (select 1
                         from ACC_Accession a2
@@ -374,76 +385,78 @@ def qcOrgAllelePartMarker():
 			and a2.prefixPart = 'MGI:'
                         and a2._LogicalDB_key = 1
                         and a2._MGIType_key = 2)
-                union
-                select tmp.mgiID2, t.name, ms.status
+		order by tmp.mgiID2''' % idTempTable
+    print 'running sql for results2b %s ' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    results2b = db.sql(cmds, 'auto')
+             
+    cmds = '''select tmp.mgiID2, t.name, ms.status
                 from tempdb..%s tmp,ACC_Accession a, ACC_MGIType t,
                         MRK_Marker m, MRK_Status ms
                 where a.numericPart = tmp.mgiID2
 		and a.prefixPart = 'MGI:'
                 and tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
-		and tmp.mgiID2 != 0
-                and a._MGIType_key = tmp.mgiID2TypeKey
+		and tmp.mgiID2 > 0
+                and a._MGIType_key = 2
                 and a._LogicalDB_key = 1
                 and a._MGIType_key = t._MGIType_key
                 and a._Object_key = m._Marker_key
                 and m._Marker_Status_key not in (1,3)
                 and m._Marker_Status_key = ms._Marker_Status_key
-                order by tmp.mgiID2''' % (idTempTable, idTempTable, idTempTable)
+                order by tmp.mgiID2''' % idTempTable
     #print cmds
-    print 'running sql for results2 %s ' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
-    results2 = db.sql(cmds, 'auto')
+    print 'running sql for results2c %s ' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    results2c = db.sql(cmds, 'auto')
 
     # Organizer ID is secondary
-    db.sql('''select tmp.mgiID1, tmp.mgiID1TypeKey, a1._Object_key,  aa.symbol
-		into #org
-                  from tempdb..%s tmp,
-                       ACC_Accession a1,
-                       ALL_Allele aa
-                  where tmp.mgiID1 = a1.numericPart
-			and a1.prefixPart = 'MGI:'
-                        and tmp.mgiID1TypeKey = 11
-                        and tmp.mgiID2TypeKey = 2
-                        and a1._MGIType_key = tmp.mgiID1TypeKey
-                        and a1._LogicalDB_key = 1
-                        and a1.preferred = 0
-                        and a1._Object_key = aa._Allele_key''' % idTempTable, None)
-    db.sql('''create index idx1 on #org(_Object_key)''', None)
-    cmds = '''select tmp.*, a2.accID
-                 from #org tmp,
-                       ACC_Accession a2
-                  where tmp._Object_key = a2._Object_key
-                        and a2._MGIType_key = tmp.mgiID1TypeKey
-                        and a2._LogicalDB_key = 1
-                        and a2.preferred = 1
-			order by tmp.mgiID1''' 
+    cmds = '''select tmp.mgiID1,
+                       aa.symbol,
+                       a2.accID
+                from tempdb..%s tmp,
+                     ACC_Accession a1,
+                     ACC_Accession a2,
+                     ALL_Allele aa
+                where tmp.mgiID1 = a1.numericPart
+		      and a1.prefixPart = 'MGI:'
+                      and tmp.mgiID1TypeKey = 11
+                      and tmp.mgiID2TypeKey = 2
+                      and a1._MGIType_key = 11
+                      and a1._LogicalDB_key = 1
+                      and a1.preferred = 0
+                      and a1._Object_key = a2._Object_key
+		      and a2.prefixPart = 'MGI:'
+                      and a2._MGIType_key = 11
+                      and a2._LogicalDB_key = 1
+                      and a2.preferred = 1
+                      and a2._Object_key = aa._Allele_key
+                order by tmp.mgiID1''' % idTempTable
+
  
     print 'running sql for results3 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
     results3 = db.sql(cmds, 'auto')
 
-    # Participant ID is secondary
-    db.sql('''select tmp.mgiID2, tmp.mgiID2TypeKey, a1._Object_key,  aa.symbol
-                into #part
-                  from tempdb..%s tmp,
-                       ACC_Accession a1,
-                       ALL_Allele aa
-                  where tmp.mgiID2 = a1.numericPart
-			and a1.prefixPart = 'MGI:'
-                        and tmp.mgiID1TypeKey = 11
-                        and tmp.mgiID2TypeKey = 2
-                        and a1._MGIType_key = tmp.mgiID2TypeKey
-                        and a1._LogicalDB_key = 1
-                        and a1.preferred = 0
-                        and a1._Object_key = aa._Allele_key''' % idTempTable, None)
-    db.sql('''Create index idx1 on #part(_Object_key)''', None)
-    cmds = '''select tmp.*, a2.accID
-                 from #part tmp,
-                       ACC_Accession a2
-                  where tmp._Object_key = a2._Object_key
-                        and a2._MGIType_key = tmp.mgiID2TypeKey
-                        and a2._LogicalDB_key = 1
-                        and a2.preferred = 1
-                        order by tmp.mgiID2''' 
+    # Participant  ID is secondary
+    cmds = '''select tmp.mgiID2,
+                       m.symbol,
+                       a2.accID
+                from tempdb..%s tmp,
+                     ACC_Accession a1,
+                     ACC_Accession a2,
+                     MRK_Marker m
+                where tmp.mgiID2 = a1.numericPart
+		      and a1.prefixPart = 'MGI:'
+                      and tmp.mgiID1TypeKey = 11
+                      and tmp.mgiID2TypeKey = 2
+                      and a1._MGIType_key =  2
+                      and a1._LogicalDB_key = 1
+                      and a1.preferred = 0
+                      and a1._Object_key = a2._Object_key
+		      and a2.prefixPart = 'MGI:'
+                      and a2._MGIType_key = 2
+                      and a2._LogicalDB_key = 1
+                      and a2.preferred = 1
+                      and a2._Object_key = m._Marker_key
+                order by tmp.mgiID2''' % idTempTable
 
     print 'running sql for results4 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
     results4 = db.sql(cmds, 'auto')
@@ -454,17 +467,17 @@ def qcOrgAllelePartMarker():
 		ALL_Allele a, MRK_Marker mo, MRK_Marker mp, ACC_Accession ao, ACC_Accession ap
 		where tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
-		and tmp.mgiID1 != 0
+		and tmp.mgiID1 > 0
 		and tmp.mgiID1 = ao.numericPart
 		and ao.prefixPart = 'MGI:'
-		and ao._MGIType_key =  tmp.mgiID1TypeKey
+		and ao._MGIType_key =  11
 		and ao.preferred = 1
 		and ao._Object_key = a._Allele_key
 		and a._Marker_key = mo._Marker_key
-		and tmp.mgiID2 != 0
+		and tmp.mgiID2 > 0
 		and tmp.mgiID2 = ap.numericPart
 		and ap.prefixPart = 'MGI:'
-		and ap._MGIType_key =  tmp.mgiID2TypeKey
+		and ap._MGIType_key =  2
                 and ap.preferred = 1
 		and ap._Object_key = mp._Marker_key
 		and mo.chromosome != mp.chromosome''' % idTempTable
@@ -473,7 +486,7 @@ def qcOrgAllelePartMarker():
 		
 	
     print 'writing OrgAllelePartMarker reports %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
-    if len(results1) >0 or len(results2) >0:
+    if len(results1a) >0 or len(results1b) >0 or len(results1c) >0  or len(results2a) >0 or len(results2b) >0 or len(results2c):
         hasFatalErrors = 1
         fpQcRpt.write(CRT + CRT + string.center('Invalid Allele/Marker Relationships',80) + CRT)
         fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
@@ -485,7 +498,8 @@ def qcOrgAllelePartMarker():
     #
     # Write MGI ID1 records to the report.
     #
-    for r in results1:
+    errorList = []
+    for r in results1a:
         organizer = 'MGI:%s' % r['mgiID1']
         objectType = r['name']
         alleleStatus = r['status']
@@ -495,21 +509,27 @@ def qcOrgAllelePartMarker():
         if alleleStatus == None:
             alleleStatus = ''
 
-        if objectType == '':
-            reason = 'Organizer does not exist'
-        elif alleleStatus == '':
-            reason = 'Organizer exists for non-allele'
-        else:
-            reason = 'Organizer allele status is invalid'
+	reason = 'Organizer does not exist'
 
-        fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
-            (organizer, objectType, alleleStatus, reason, CRT))
+	errorList.append('%-12s  %-20s  %-20s  %-30s' %
+            (organizer, objectType, alleleStatus, reason))
+    for r in results1b:
+	organizer = 'MGI:%s' % r['mgiID1']
+        objectType = r['name']
+        alleleStatus = r['status']
 
-    #
-    # Write MGI ID2 records to the report.
-    #
-    for r in results2:
-        participant = 'MGI:%s' % r['mgiID2']
+        if objectType == None:
+            objectType = ''
+        if alleleStatus == None:
+            alleleStatus = ''
+	
+	reason = 'Organizer exists for non-allele'
+
+ 	errorList.append('%-12s  %-20s  %-20s  %-30s' %
+            (organizer, objectType, alleleStatus, reason))
+
+    for r in results1c:
+	organizer = 'MGI:%s' % r['mgiID1']
         objectType = r['name']
         alleleStatus = r['status']
 
@@ -518,15 +538,61 @@ def qcOrgAllelePartMarker():
         if alleleStatus == None:
             alleleStatus = ''
 
-        if objectType == '':
-            reason = 'Participant does not exist'
-        elif alleleStatus == '':
-            reason = 'Participant exists for non-marker'
-        else:
-            reason = 'Participant marker status is invalid'
+	reason = 'Organizer allele status is invalid'
 
-        fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
-            (participant, objectType, alleleStatus, reason, CRT))
+        errorList.append('%-12s  %-20s  %-20s  %-30s' %
+            (organizer, objectType, alleleStatus, reason))
+
+    #
+    # Write MGI ID2 records to the report.
+    #
+    for r in results2a:
+        organizer = 'MGI:%s' % r['mgiID2']
+        objectType = r['name']
+        alleleStatus = r['status']
+
+        if objectType == None:
+            objectType = ''
+        if alleleStatus == None:
+            alleleStatus = ''
+
+        reason = 'Participant does not exist'
+
+        errorList.append('%-12s  %-20s  %-20s  %-30s' %
+            (organizer, objectType, alleleStatus, reason))
+
+    for r in results2b:
+        organizer = 'MGI:%s' % r['mgiID2']
+        objectType = r['name']
+        alleleStatus = r['status']
+
+        if objectType == None:
+            objectType = ''
+        if alleleStatus == None:
+            alleleStatus = ''
+
+        reason = 'Participant exists for non-marker'
+
+        errorList.append('%-12s  %-20s  %-20s  %-30s' %
+            (organizer, objectType, alleleStatus, reason))
+
+    for r in results2c:
+        organizer = 'MGI:%s' % r['mgiID2']
+        objectType = r['name']
+        alleleStatus = r['status']
+
+        if objectType == None:
+            objectType = ''
+        if alleleStatus == None:
+            alleleStatus = ''
+
+        reason = 'Participant marker status is invalid'
+
+        errorList.append('%-12s  %-20s  %-20s  %-30s' %
+            (organizer, objectType, alleleStatus, reason))
+    s = set(errorList)
+    errorList = list(s)
+    fpQcRpt.write(string.join(errorList, CRT))
 
     if len(results3) >0 or len(results4) >0:
         hasFatalErrors = 1
@@ -590,7 +656,7 @@ def qcOrgMarkerPartMarker():
 		from tempdb..%s tmp
 		where tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
-		and tmp.mgiID1 != 0
+		and tmp.mgiID1 > 0
 		and not exists(select 1
 		from ACC_Accession a
 		where a.numericPart = tmp.mgiID1
@@ -603,8 +669,8 @@ def qcOrgMarkerPartMarker():
 		and tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
 		and a1._LogicalDB_key = 1
-		and tmp.mgiID1 != 0
-		and a1._MGIType_key != tmp.mgiID1TypeKey
+		and tmp.mgiID1 > 0
+		and a1._MGIType_key != 2
 		and a1._MGIType_key = t._MGIType_key
 		and not exists (select 1 
 			from ACC_Accession a2
@@ -620,9 +686,9 @@ def qcOrgMarkerPartMarker():
 		and a.prefixPart = 'MGI:'
 		and tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
-		and tmp.mgiID1 != 0
+		and tmp.mgiID1 > 0
 		and a._LogicalDB_key = 1
-		and a._MGIType_key = tmp.mgiID1TypeKey
+		and a._MGIType_key = 2
 		and a._MGIType_key = t._MGIType_key
                 and a._Object_key = m._Marker_key
                 and m._Marker_Status_key not in (1,3)
@@ -636,7 +702,7 @@ def qcOrgMarkerPartMarker():
                 from tempdb..%s tmp
 		where tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
-		and tmp.mgiID2 != 0
+		and tmp.mgiID2 > 0
                 and not exists(select 1
                 from ACC_Accession a
                 where a.numericPart = tmp.mgiID2
@@ -648,9 +714,9 @@ def qcOrgMarkerPartMarker():
 		and a1.prefixPart = 'MGI:'
 		and tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
-		and tmp.mgiID2 != 0
+		and tmp.mgiID2 > 0
                 and a1._LogicalDB_key = 1
-                and a1._MGIType_key != tmp.mgiID2TypeKey
+                and a1._MGIType_key != 2
 		and a1._MGIType_key = t._MGIType_key
                 and not exists (select 1
                         from ACC_Accession a2
@@ -666,8 +732,8 @@ def qcOrgMarkerPartMarker():
 		and a.prefixPart = 'MGI:'
 		and tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
-		and tmp.mgiID2 != 0
-		and a._MGIType_key = tmp.mgiID2TypeKey
+		and tmp.mgiID2 > 0
+		and a._MGIType_key = 2
                 and a._LogicalDB_key = 1
                 and a._MGIType_key = t._MGIType_key
                 and a._Object_key = m._Marker_key
@@ -677,54 +743,52 @@ def qcOrgMarkerPartMarker():
     #print cmds
     print 'running sql for results2 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
     results2 = db.sql(cmds, 'auto')
-  
-    db.sql('''select tmp.mgiID1, tmp.mgiID1TypeKey, a1._Object_key,  m.symbol
-                into #org
+ 
+    cmds = '''select tmp.mgiID1,
+                       m.symbol,
+                       a2.accID
                 from tempdb..%s tmp,
-                   ACC_Accession a1,
-                   MRK_Marker m
+                     ACC_Accession a1,
+                     ACC_Accession a2,
+                     MRK_Marker m
                 where tmp.mgiID1 = a1.numericPart
-		    and a1.prefixPart = 'MGI:'
-                    and tmp.mgiID1TypeKey = 2
-                    and tmp.mgiID2TypeKey = 2
-                    and a1._MGIType_key = tmp.mgiID1TypeKey
-                    and a1._LogicalDB_key = 1
-                    and a1.preferred = 0
-                    and a1._Object_key = m._Marker_key''' % idTempTable, None)
-    db.sql('''Create index idx1 on #org(_Object_key)''', None)
-    cmds = '''select tmp.*, a2.accID
-                 from #org tmp,
-                       ACC_Accession a2
-                  where tmp._Object_key = a2._Object_key
-                        and a2._MGIType_key = tmp.mgiID1TypeKey
-                        and a2._LogicalDB_key = 1
-                        and a2.preferred = 1
-		  order by tmp.mgiID1''' 
+		      and a1.prefixPart = 'MGI:'
+                      and tmp.mgiID1TypeKey = 2
+                      and tmp.mgiID2TypeKey = 2
+                      and a1._MGIType_key = 2
+                      and a1._LogicalDB_key = 1
+                      and a1.preferred = 0
+                      and a1._Object_key = a2._Object_key
+		      and a2.prefixPart = 'MGI:'
+                      and a2._MGIType_key = 2
+                      and a2._LogicalDB_key = 1
+                      and a2.preferred = 1
+                      and a2._Object_key = m._Marker_key
+                order by tmp.mgiID1''' % idTempTable
     print 'running sql for results3 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
     results3 = db.sql(cmds, 'auto')
 
-    db.sql('''select tmp.mgiID2, tmp.mgiID2TypeKey, a1._Object_key,  m.symbol
-                into #part
+    cmds = '''select tmp.mgiID2,
+                       m.symbol,
+                       a2.accID
                 from tempdb..%s tmp,
-                   ACC_Accession a1,
-                   MRK_Marker m
+                     ACC_Accession a1,
+                     ACC_Accession a2,
+                     MRK_Marker m
                 where tmp.mgiID2 = a1.numericPart
-		    and a1.prefixPart = 'MGI:'
-                    and tmp.mgiID1TypeKey = 2
-                    and tmp.mgiID2TypeKey = 2
-                    and a1._MGIType_key = tmp.mgiID2TypeKey
-                    and a1._LogicalDB_key = 1
-                    and a1.preferred = 0
-                    and a1._Object_key = m._Marker_key''' % idTempTable, None)
-    db.sql('''create index idx1 on #part(_Object_key)''', None)
-    cmds = '''select tmp.*, a2.accID
-                 from #part tmp,
-                       ACC_Accession a2
-                  where tmp._Object_key = a2._Object_key
-                        and a2._MGIType_key = tmp.mgiID2TypeKey
-                        and a2._LogicalDB_key = 1
-                        and a2.preferred = 1
-                  order by tmp.mgiID2'''
+		      and a1.prefixPart = 'MGI:'
+                      and tmp.mgiID1TypeKey = 2
+                      and tmp.mgiID2TypeKey = 2
+                      and a1._MGIType_key =  2
+                      and a1._LogicalDB_key = 1
+                      and a1.preferred = 0
+                      and a1._Object_key = a2._Object_key
+		      and a2.prefixPart = 'MGI:'
+                      and a2._MGIType_key =  2
+                      and a2._LogicalDB_key = 1
+                      and a2.preferred = 1
+                      and a2._Object_key = m._Marker_key
+                order by tmp.mgiID2''' % idTempTable
 
     print 'running sql for results4 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
     results4 = db.sql(cmds, 'auto')
