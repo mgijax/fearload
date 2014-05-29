@@ -308,6 +308,7 @@ def qcOrgAllelePartMarker():
 		and a.prefixPart = 'MGI:')
 		order by tmp.mgiID1''' % idTempTable
     print 'running sql for results1a %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     results1a = db.sql(cmds, 'auto')
 
     cmds = '''select tmp.mgiID1, t.name, null "status"
@@ -328,6 +329,7 @@ def qcOrgAllelePartMarker():
                         and a2._MGIType_key = 11)
 		order by tmp.mgiID1''' % idTempTable
     print 'running sql for results1b %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     results1b = db.sql(cmds, 'auto')
 
     cmds = '''select tmp.mgiID1, t.name, vt.term as status
@@ -348,6 +350,7 @@ def qcOrgAllelePartMarker():
 
     #print cmds
     print 'running sql for results1c %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     results1c = db.sql(cmds, 'auto')
 
     # Participant MGI ID does not exist in the database
@@ -367,6 +370,7 @@ def qcOrgAllelePartMarker():
 		and a.prefixPart = 'MGI:')
 		order by tmp.mgiID2''' % idTempTable
     print 'running sql for results2a %s ' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     results2a = db.sql(cmds, 'auto')
  
     cmds = '''select tmp.mgiID2, t.name, null "status"
@@ -387,6 +391,7 @@ def qcOrgAllelePartMarker():
                         and a2._MGIType_key = 2)
 		order by tmp.mgiID2''' % idTempTable
     print 'running sql for results2b %s ' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     results2b = db.sql(cmds, 'auto')
              
     cmds = '''select tmp.mgiID2, t.name, ms.status
@@ -406,6 +411,7 @@ def qcOrgAllelePartMarker():
                 order by tmp.mgiID2''' % idTempTable
     #print cmds
     print 'running sql for results2c %s ' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     results2c = db.sql(cmds, 'auto')
 
     # Organizer ID is secondary
@@ -433,6 +439,7 @@ def qcOrgAllelePartMarker():
 
  
     print 'running sql for results3 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     results3 = db.sql(cmds, 'auto')
 
     # Participant  ID is secondary
@@ -459,6 +466,7 @@ def qcOrgAllelePartMarker():
                 order by tmp.mgiID2''' % idTempTable
 
     print 'running sql for results4 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     results4 = db.sql(cmds, 'auto')
     
     cmds = '''select distinct tmp.mgiID1 as org, tmp.mgiID2 as part, 
@@ -482,10 +490,12 @@ def qcOrgAllelePartMarker():
 		and ap._Object_key = mp._Marker_key
 		and mo.chromosome != mp.chromosome''' % idTempTable
     print 'running sql for results5 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     results5 = db.sql(cmds, 'auto')
 		
 	
     print 'writing OrgAllelePartMarker reports %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     if len(results1a) >0 or len(results1b) >0 or len(results1c) >0  or len(results2a) >0 or len(results2b) >0 or len(results2c):
         hasFatalErrors = 1
         fpQcRpt.write(CRT + CRT + string.center('Invalid Allele/Marker Relationships',80) + CRT)
@@ -696,6 +706,7 @@ def qcOrgMarkerPartMarker():
                 order by tmp.mgiID1''' % (idTempTable, idTempTable, idTempTable)
     #print cmds
     print 'running sql for results1 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     results1 = db.sql(cmds, 'auto')
 
     cmds = '''select tmp.mgiID2, null "name", null "status"
@@ -742,6 +753,7 @@ def qcOrgMarkerPartMarker():
                 order by tmp.mgiID2''' % (idTempTable, idTempTable, idTempTable)
     #print cmds
     print 'running sql for results2 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     results2 = db.sql(cmds, 'auto')
  
     cmds = '''select tmp.mgiID1,
@@ -766,6 +778,7 @@ def qcOrgMarkerPartMarker():
                       and a2._Object_key = m._Marker_key
                 order by tmp.mgiID1''' % idTempTable
     print 'running sql for results3 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     results3 = db.sql(cmds, 'auto')
 
     cmds = '''select tmp.mgiID2,
@@ -791,9 +804,11 @@ def qcOrgMarkerPartMarker():
                 order by tmp.mgiID2''' % idTempTable
 
     print 'running sql for results4 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     results4 = db.sql(cmds, 'auto')
  
     print 'writing OrgMarkerPartMarker reports  %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     if len(results1) >0 or len(results2) >0:
         hasFatalErrors = 1
         fpQcRpt.write(CRT + CRT + string.center('Invalid Marker/Marker Relationships',80) + CRT)
@@ -881,6 +896,7 @@ def qcInvalidMgiPrefix ():
 
     # IDs w/o proper MGI ID prefix
     print 'processing bad MGI IDs %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    sys.stdout.flush()
     badIdList = []
     for id in badIdDict.keys():
 	badIdList.append('%-12s  %-20s' % (id, badIdDict[id]))
@@ -1306,17 +1322,19 @@ def loadTempTables ():
 # Main
 #
 print 'checkArgs(): %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+sys.stdout.flush()
 checkArgs()
 
 print 'init(): %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+sys.stdout.flush()
 init()
 
 print 'runQcChecks(): %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
-
+sys.stdout.flush()
 runQcChecks()
 
 print 'closeFiles(): %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
-
+sys.stdout.flush()
 closeFiles()
 
 print 'done: %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
