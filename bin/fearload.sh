@@ -139,6 +139,22 @@ STAT=$?
 checkStatus ${STAT} "${FEARLOAD}/bin/fearload.py"
 
 #
+# Do Deletes
+#
+# check for empty file
+# get password from password file
+# execute sql file
+
+if [ -s "${DELETE_SQL}" ]
+then
+    # example isql -S$MGD_DBSERVER -D$DATABASE -Umgd_public -Pmgdpub -w200 -i $SQL >> $OUTPUT
+    echo "" >> ${LOG_DIAG}
+    date >> ${LOG_DIAG}
+    echo 'Deleting Relationships'  >> ${LOG_DIAG}
+    isql -S${MGD_DBSERVER} -D${MGD_DBNAME} -U${MGD_DBUSER} -P`cat ${MGD_DBPASSWORDFILE}` -w300 -i ${DELETE_SQL} >> ${LOG_DIAG}
+fi
+
+#
 # Do BCP
 #
 
@@ -146,20 +162,24 @@ checkStatus ${STAT} "${FEARLOAD}/bin/fearload.py"
 COLDELIM="\t"
 LINEDELIM="\n"
 
-echo "" >> ${LOG_DIAG}
-date >> ${LOG_DIAG}
-echo 'BCP data into MGI_Relationship'  >> ${LOG_DIAG}
-
 TABLE=MGI_Relationship
 
-# Drop indexes
-${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
+if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]
+then
+    echo "" >> ${LOG_DIAG}
+    date >> ${LOG_DIAG}
+    echo 'BCP in Relationships'  >> ${LOG_DIAG}
 
-# BCP new data
-${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
 
-# Create indexes
-${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
+    # Drop indexes
+    ${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
+
+    # BCP new data
+    ${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+
+    # Create indexes
+    ${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
+fi
 
 TABLE=MGI_Relationship_Property
 if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]

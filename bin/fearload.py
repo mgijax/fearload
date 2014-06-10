@@ -389,10 +389,12 @@ def createFiles( ):
 
  	# get the first 13 lines - these are fixed columns, mapping to lower case
 	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note) = map(string.lower, map(string.strip, string.split(line, TAB))[:13])
-	remainingTokens = map(string.lower, map(string.strip, string.split(line, TAB))[13:])
+	remainingTokens = map(string.strip, string.split(line, TAB))[13:]
 
 	#print '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s' % (action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note)
-
+	if action == 'delete':
+	    line = fpInFile.readline()
+	    continue
 	if categoryDict.has_key(cat):
 	    c = categoryDict[cat]
 	    catKey = c.key
