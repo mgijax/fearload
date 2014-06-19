@@ -69,7 +69,6 @@ import Set
 
 import db
 import mgi_utils
-import vocloadlib
 
 #
 #  CONSTANTS
@@ -387,11 +386,12 @@ def createFiles( ):
     line = fpInFile.readline()
     while line:
 
- 	# get the first 13 lines - these are fixed columns, mapping to lower case
-	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note) = map(string.lower, map(string.strip, string.split(line, TAB))[:13])
-	remainingTokens = map(string.strip, string.split(line, TAB))[13:]
-
-	#print '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s' % (action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note)
+ 	# get the first 13 lines - these are fixed columns; map to lower case
+	# moved note to 'remaining columns' as we don't want in lower case
+	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator) = map(string.lower, map(string.strip, string.split(line, TAB))[:12])
+	remainingTokens = map(string.strip, string.split(line, TAB))[12:]
+	note = remainingTokens[0]
+	remainingTokens = remainingTokens[1:]
 	if action == 'delete':
 	    line = fpInFile.readline()
 	    continue
@@ -468,16 +468,20 @@ def createFiles( ):
 	    (nextRelationshipKey, TAB, catKey, TAB, objKey1, TAB, objKey2, TAB, relKey, TAB, qualKey, TAB, evidKey, TAB, refsKey, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT))
 
   	# MGI_Note
-	if note != '':
+	if len(note) > 0:
 	    fpNoteFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % \
 		(nextNoteKey, TAB, nextRelationshipKey, TAB, relationshipMgiTypeKey, TAB, relationshipNoteTypeKey, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT))
 
 	    # MGI_NoteChunk
 	    seqNum = 0
-	    for chunk in vocloadlib.splitBySize(note, 255):
+	    while len(note) > 255:
+		print 'chunk: "%s"' % chunk
 		seqNum += 1
 		fpNoteChunkFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s'% \
-		    (nextNoteKey, TAB, seqNum, TAB, chunk, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT))
+		    (nextNoteKey, TAB, seqNum, TAB, note[255:], TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT))
+	    if  len(note) > 0:
+		fpNoteChunkFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s'% \
+                    (nextNoteKey, TAB, seqNum, TAB, note, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT))
 
 
 	# MGI_Relationship_Property

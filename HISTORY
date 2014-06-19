@@ -1,3 +1,10 @@
+TAG: fearload-5-1-7-27
+DATE: 06/19/2014
+STAFF: sc
+CHANGES: US60 - 
+1) fearQC.py - strip note
+2) fearload.py - preserve note case
+
 TAG: fearload-5-1-7-26
 DATE: 06/20/2014
 STAFF: sc
@@ -11,6 +18,7 @@ CHANGES: US60 - indiv. deletes, US154 - preserver property case
      by fearQC.py
 5) fearload.sh - check relationship bcp for empty file, with deletes
     there may not be any adds. Execute the delete sql file created by fearQC.py
+
 TAG: fearload-5-1-7-25
 DATE: 05/28/2014
 STAFF: sc
