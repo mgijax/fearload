@@ -1255,14 +1255,11 @@ def runQcChecks ():
 	    else:
 		print 'delete in database'
 		# write to delete.rpt and delete.sql
-		# action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note
 		for rKey in delRelDict:
 		    rList = delRelDict[rKey]
 		    propList = []
 		    noteList = []
 		    for r in rList:
-			# TO DO: columnize properties
-			# TO DO: get notes
 			prop = ''
 			propName = r['propName']
 			if propName != None:
@@ -1272,9 +1269,13 @@ def runQcChecks ():
 				propList.append(prop)
 			#print 'prop: %s' % prop
 			note = r['note']
-			#print 'note: %s' % note
-			if note != None and note not in noteList:
-			    noteList.append(note)
+			print 'note: %s' % note
+			if note != None:
+			    note = string.strip(note)
+			    if note not in noteList:
+				print 'appending note: "%s"' % note
+				noteList.append(string.strip(note))
+			print  noteList
 		    if catKey in (1001, 1002):
 			obj1Symbol = markerDict[obj1Id][1]
 			obj2Symbol = markerDict[obj2Id][1]
