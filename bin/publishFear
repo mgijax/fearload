@@ -21,8 +21,7 @@ usage ()
 
 CURRENT_DIR=`pwd`
 
-#LOADDIR=/usr/local/mgi/live/dataload/fearload
-LOADDIR=/home/sc/work/dataload/fearload
+LOADDIR=/usr/local/mgi/live/dataload/fearload
 CONFIG=${LOADDIR}/fearload.config
 
 #
