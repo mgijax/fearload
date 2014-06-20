@@ -238,6 +238,13 @@ fi
 #
 # Create temp tables for the input data.
 #
+#
+# Append the current user ID to the name of the temp table that needs to be
+# created. This allows multiple people to run the QC checks at the same time
+# without sharing the same table.
+#
+MGI_ID_TEMP_TABLE=${MGI_ID_TEMP_TABLE}_${USER}
+
 echo "" >> ${LOG}
 date >> ${LOG}
 echo "Create temp tables for the input data" >> ${LOG}
