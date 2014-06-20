@@ -1,0 +1,88 @@
+#!/bin/sh
+#
+#  publishFear
+###########################################################################
+#
+# A copy of this script is intended to reside in /usr/local/mgi/bin on all
+# servers to make it available in the common PATH.
+#
+# Its allows someone to publish a new relationship input file
+# to the directory where the feature relatoinship loader will look for it.
+#
+###########################################################################
+
+usage ()
+{
+    echo "Usage: publishFear input_file"
+    echo "       where"
+    echo "           input_file = name of the relationship input file"
+    exit 1
+}
+
+CURRENT_DIR=`pwd`
+
+#LOADDIR=/usr/local/mgi/live/dataload/fearload
+LOADDIR=/home/sc/work/dataload/fearload
+CONFIG=${LOADDIR}/fearload.config
+
+#
+# The fearload product is not installed on all servers, so make sure
+# it exists on this one.
+#
+if [ ! -d ${LOADDIR} ]
+then
+    echo "The fearload software does not exist on this server"
+    exit 1
+fi
+
+#
+# Make sure an input file was passed as an argument to the script.
+#
+if [ $# -eq 1 ]
+then
+    if [ ! -r $1 ]
+    then
+        echo "Input file does not exist: $1"
+        exit 1
+    fi
+else
+    usage
+fi
+
+INPUT_FILE=$1
+
+#
+# Create a temporary file and make sure that it is removed when this script
+# terminates.
+#
+TMP_FILE=/tmp/`basename $0`.$$
+touch ${TMP_FILE}
+trap "rm -f ${TMP_FILE}" 0 1 2 15
+
+#
+# Make sure the configuration file exists and source it.
+#
+if [ -f ${CONFIG} ]
+then
+    . ${CONFIG}
+else
+    echo "Missing configuration file: ${CONFIG}"
+    exit 1
+fi
+
+#
+# Copy the input file to the input directory where it will be picked up
+# by the load.
+#
+cd ${CURRENT_DIR}
+echo "Source File:      ${INPUT_FILE}"
+echo "Destination File: ${INPUT_FILE_DEFAULT}"
+cp ${INPUT_FILE} ${INPUT_FILE_DEFAULT}
+if [ $? -eq 0 ]
+then
+    echo "Copy successful"
+    exit 0
+else
+    echo "Copy failed"
+    exit 1
+fi
