@@ -1,3 +1,14 @@
+TAG: fearload-5-1-7-28
+DATE: 06/??/2014
+STAFF: sc
+CHANGES: US17 - support curators running QC/publish scripts
+1) fearQC.sh - append user ID to temp table name so multi curators
+   can run QC
+2) runFearQC - change 'scrum-bob' to 'live' in LOADDIR
+3) publishFear - added
+4) Install - uncommented 'publishFear'
+5) index.html - added
+
 TAG: fearload-5-1-7-27
 DATE: 06/19/2014
 STAFF: sc
