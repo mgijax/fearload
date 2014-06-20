@@ -133,7 +133,7 @@ if [ -d ${DEPLOY_PATH} ]; then
 	# deployment errors are non-fatal, as they can occur regularly in an
 	# SE's development area
 
-	for file in runFearQC #publishFearFile
+	for file in runFearQC publishFear
 	do
 		cp bin/${file} ${DEPLOY_PATH}
 		if [ $? -ne 0 ]; then
