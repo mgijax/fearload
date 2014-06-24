@@ -1250,7 +1250,8 @@ def runQcChecks ():
 	    #print delRelDict
 	    if not len(delRelDict):
 		print 'delete not in database'
-		deleteNotInDbList.append('%-12s   %-68s' % (lineCt, line))
+		deleteNotInDbList.append('%-12s   %-68s' % \
+		    (lineCt, string.strip(line)))
 
 	    else:
 		print 'delete in database'
