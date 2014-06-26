@@ -16,18 +16,21 @@
 #          filename = path to the input file
 #
 #  Inputs:
+#      - input file as parameter - see USAGE
 #
 #  Outputs:
 #
 #      - QC report (${QC_RPT})
+#      - Warning report (${WARNING_RPT})
+#      - Delete report (${DELETE_RPT})
+#      - Delete SQL file (${DELETE_SQL})
+#      - tempdb BCP file (${MGI_ID_BCP})
 #
 #  Exit Codes:
 #
 #      0:  Successful completion
 #      1:  An exception occurred
-#      2:  Fatal discrepancy errors detected and written to report
-#      3:  Warning errors written to the command line
-#      4:  Non-fatal discrepancy errors detected and written to report
+#      2:  Fatal QC errors detected and written to report
 #
 #  Assumes:
 #
@@ -42,6 +45,15 @@
 #      5) Close the input/output files.
 #
 #  Notes:  None
+#
+###########################################################################
+#
+#  Modification History:
+#
+#  Date        SE   Change Description
+#  ----------  ---  -------------------------------------------------------
+#
+#  03/11/2014  sc  Initial development
 #
 ###########################################################################
 
@@ -83,25 +95,25 @@ idTempTable = os.environ['MGI_ID_TEMP_TABLE']
 # 1 if any QC errors in the input file
 hasFatalErrors = 0
 
-# category lookup {name:query result set, ...}
+# category lookup {name:query result set, ...} from the database
 categoryDict = {}
 
-# relationship term lookup {term:key, ...}
+# relationship term lookup {term:key, ...} from the database
 relationshipDict = {}
 
-# qualifier term lookup {term:key, ...}
+# qualifier term lookup {term:key, ...} from the database
 qualifierDict = {}
 
-# evidence term lookup {term:key, ...}
+# evidence term lookup {term:key, ...} from the database
 evidenceDict = {}
 
-# reference ID (JNum) lookup {term:key, ...}
+# reference ID (JNum) lookup {term:key, ...} from the database
 jNumDict = {}
 
-# MGI_User lookup {userLogin:key, ...}
+# MGI_User lookup {userLogin:key, ...} from the database
 userDict = {}
 
-# list of valid properties
+# list of valid properties from the database
 validPropList = []
 
 # proper MGI ID prefix in lowercase
@@ -110,7 +122,22 @@ mgiPrefix = 'mgi:'
 # columns 1-numNonPropCol may NOT include properties
 numNonPropCol=13
 
-# MGI IDs with no ':'
+#  list of rows with errors by attribute
+actionList = []
+categoryList = []
+qualifierList = []
+evidenceList = []
+jNumList = []
+userList = []
+relIdList = []
+obsRelIdList = []
+relVocabList = []
+relDagList = []
+badPropList = []
+badPropValueList = []
+
+# improperly formated organizer or participant MGI IDs
+# {badId:type, ...} where type is organizer or participant
 badIdDict = {}
 
 #
@@ -133,7 +160,7 @@ deleteNotInDbList = []
 # Purpose: Validate the arguments to the script.
 # Returns: Nothing
 # Assumes: Nothing
-# Effects: sets global variable
+# Effects: sets global variable, exits if incorrect # of args
 # Throws: Nothing
 #
 def checkArgs ():
@@ -147,32 +174,25 @@ def checkArgs ():
 
     return
 
+# end checkArgs() -------------------------------
 
-#
-# Purpose: Perform initialization steps.
+# Purpose: create lookups, open files
 # Returns: Nothing
 # Assumes: Nothing
-# Effects: Sets global variables.
-# Throws: Nothing
-#
-def init ():
-    # Purpose: create lookups, open files
-    # Returns: Nothing
-    # Assumes: Nothing
-    # Effects: Sets global variables, exits if a file cant be opened,
-    #  creates files in the file system, creates connection to a database
+# Effects: Sets global variables, exits if a file can't be opened,
+#  creates files in the file system, creates connection to a database
 
-    global nextPropertyKey, categoryDict, relationshipDict
+def init ():
+    global categoryDict, relationshipDict
     global qualifierDict, evidenceDict, jNumDict, userDict
     global validPropList, passwordFile
 
+    # open input/output files
     openFiles()
 
     #
     # create database connection
     #
-    #user = os.environ['MGD_DBUSER']
-    #passwordFile = os.environ['MGD_DBPASSWORDFILE']
     user = os.environ['MGI_PUBLICUSER']
     passwordFile = os.environ['MGI_PUBPASSWORDFILE']
 
@@ -184,16 +204,17 @@ def init ():
     #
 
     # FeaR Category Lookup
-    #print 'category lookup %s' % mgi_utils.date()
-    results = db.sql('''select name, _Category_key, _RelationshipVocab_key, _RelationshipDAG_key, _MGIType_key_1, _MGIType_key_2
+    results = db.sql('''select name, _Category_key, _RelationshipVocab_key, 
+	    _RelationshipDAG_key, _MGIType_key_1, _MGIType_key_2
 	from MGI_Relationship_Category''', 'auto')
+
     for r in results:
-	#print r['name'].lower()
         categoryDict[r['name'].lower()] = r
 
     # FeaR vocab lookup
     #print 'FeaR vocab lookup %s' % mgi_utils.date()
-    results = db.sql('''select a.accID, a._Object_key, t.term, t.isObsolete, dn._DAG_key, vd._Vocab_key
+    results = db.sql('''select a.accID, a._Object_key, t.term, t.isObsolete, 
+	    dn._DAG_key, vd._Vocab_key
         from ACC_Accession a, VOC_Term t, DAG_Node dn, VOC_VocabDAG vd
         where a._MGIType_key = 13
         and a._LogicalDB_key = 171
@@ -263,28 +284,37 @@ def init ():
 
     return
 
+# end init() -------------------------------
+
+# Purpose: load lookups from tempdb for delete processing
+# Returns: Nothing
+# Assumes: tempdb loaded with input file data
+# Effects: queries a database, modifies global variables
+#
 def loadTempdbLookups(): 
     global alleleDict, markerDict
-    #
-    # load allele and marker lookups for later processing of deletes 
-    #
 
     # load org=allele, part= marker from temp table
-    results = db.sql('''select distinct tmp.mgiID1, a1._Object_key as _Allele_key, aa.symbol as alleleSymbol, tmp.mgiID2, a2._Object_key as _Marker_key, m.symbol as markerSymbol
-		    from tempdb..%s tmp, ACC_Accession a1, ACC_Accession a2,
-			ALL_Allele aa, MRK_Marker m
-		    where tmp.mgiID1TypeKey = 11
-		    and tmp.mgiID2TypeKey = 2
-		    and tmp.mgiID1 = a1.numericPart
-		    and a1._MGIType_key = 11
-		    and a1.preferred = 1
-		    and a1._LogicalDB_key = 1
-		    and a1._Object_key = aa._Allele_key
-		    and tmp.mgiID2 = a2.numericPart
-		    and a2._MGIType_key = 2
-		    and a2.preferred = 1
-		    and a2._LogicalDB_key = 1
-		    and a2._Object_key = m._Marker_key''' % idTempTable, 'auto')
+    results = db.sql('''select distinct tmp.mgiID1, 
+		a1._Object_key as _Allele_key, aa.symbol as alleleSymbol, 
+		tmp.mgiID2, a2._Object_key as _Marker_key, 
+		m.symbol as markerSymbol
+	    from tempdb..%s tmp, ACC_Accession a1, ACC_Accession a2,
+		ALL_Allele aa, MRK_Marker m
+	    where tmp.mgiID1TypeKey = 11
+	    and tmp.mgiID2TypeKey = 2
+	    and tmp.mgiID1 = a1.numericPart
+	    and a1._MGIType_key = 11
+	    and a1.preferred = 1
+	    and a1._LogicalDB_key = 1
+	    and a1._Object_key = aa._Allele_key
+	    and tmp.mgiID2 = a2.numericPart
+	    and a2._MGIType_key = 2
+	    and a2.preferred = 1
+	    and a2._LogicalDB_key = 1
+	    and a2._Object_key = m._Marker_key''' % idTempTable, 'auto')
+
+    # load alleleDict and markerDict from query results
     for r in results:
 	alleleID = 'mgi:%s' % r['mgiID1']
 	#print '%s %s' % (alleleID, r['_Allele_key'])
@@ -296,21 +326,26 @@ def loadTempdbLookups():
 	    markerDict[markerID] = [r['_Marker_key'], r['markerSymbol']]
 
     # load org=marker, part=marker from temp table
-    results = db.sql('''select distinct tmp.mgiID1, a1._Object_key as _Marker_key_1, m1.symbol as symbol1, tmp.mgiID2, a2._Object_key as _Marker_key_2, m2.symbol as symbol2
-		    from tempdb..%s tmp, ACC_Accession a1, ACC_Accession a2,
-			MRK_Marker m1, MRK_Marker m2
-		    where tmp.mgiID1TypeKey = 2
-		    and tmp.mgiID2TypeKey = 2
-		    and tmp.mgiID1 = a1.numericPart
-		    and a1._MGIType_key = 2
-		    and a1.preferred = 1
-		    and a1._LogicalDB_key = 1
-		    and a1._Object_key = m1._Marker_key
-		    and tmp.mgiID2 = a2.numericPart
-		    and a2._MGIType_key = 2
-		    and a2.preferred = 1
-		    and a2._LogicalDB_key = 1
-		    and a2._Object_key = m2._Marker_key''' % idTempTable, 'auto')
+    results = db.sql('''select distinct tmp.mgiID1, 
+		a1._Object_key as _Marker_key_1, m1.symbol as symbol1, 
+		tmp.mgiID2, a2._Object_key as _Marker_key_2, 
+		m2.symbol as symbol2
+	    from tempdb..%s tmp, ACC_Accession a1, ACC_Accession a2,
+		MRK_Marker m1, MRK_Marker m2
+	    where tmp.mgiID1TypeKey = 2
+	    and tmp.mgiID2TypeKey = 2
+	    and tmp.mgiID1 = a1.numericPart
+	    and a1._MGIType_key = 2
+	    and a1.preferred = 1
+	    and a1._LogicalDB_key = 1
+	    and a1._Object_key = m1._Marker_key
+	    and tmp.mgiID2 = a2.numericPart
+	    and a2._MGIType_key = 2
+	    and a2.preferred = 1
+	    and a2._LogicalDB_key = 1
+	    and a2._Object_key = m2._Marker_key''' % \
+		idTempTable, 'auto')
+    # load markerDict from query results
     for r in results:
 	markerID1 = 'mgi:%s' % r['mgiID1']
 	markerID2 = 'mgi:%s' % r['mgiID2']
@@ -322,9 +357,10 @@ def loadTempdbLookups():
 
     return
 
+# end loadTempdbLookups() -------------------------------
 
 #
-# Purpose: Open the files.
+# Purpose: Open input and output files.
 # Returns: Nothing
 # Assumes: Nothing
 # Effects: Sets global variables.
@@ -334,7 +370,7 @@ def openFiles ():
     global fpInput, fpQcRpt, fpIDBCP, fpWarnRpt, fpDeleteRpt, fpDeleteSQL
 
     #
-    # Open the input file.
+    # Open the input file
     #
     try:
         fpInput = open(inputFile, 'r')
@@ -342,35 +378,54 @@ def openFiles ():
         print 'Cannot open input file: %s' % inputFile
         sys.exit(1)
 
+    #
+    # Open QC report file
+    #
     try:
         fpQcRpt = open(qcRptFile, 'w')
     except:
         print 'Cannot open report file: %s' % qcRptFile
         sys.exit(1)
 
+    #
+    # Open tempdb BCP file
+    #
     try:
         fpIDBCP = open(idBcpFile, 'w')
     except:
-        print 'Cannot open report file: %s' % idBcpFile
+        print 'Cannot open tempdb bcp file: %s' % idBcpFile
         sys.exit(1)
 
+    #
+    # Open the warning report
+    #
     try:
 	fpWarnRpt = open(warnRptFile, 'w')
     except:
-	print 'Cannot open report file: %s' % warnRptFile
+	print 'Cannot open warning report file: %s' % warnRptFile
         sys.exit(1)
+
+    #
+    # Open the delete report
+    #
     try:
         fpDeleteRpt = open(deleteRptFile, 'w')
     except:
-        print 'Cannot open report file: %s' % deleteRptFile
+        print 'Cannot open delete report file: %s' % deleteRptFile
         sys.exit(1)
+
+    #
+    # Open the delete SQL file
+    #
     try:
         fpDeleteSQL = open(deleteSQL, 'w')
     except:
-        print 'Cannot open report file: %s' % deleteSQL
+        print 'Cannot open delete SQL file: %s' % deleteSQL
         sys.exit(1)
 
     return
+
+# end openFiles() -------------------------------
 
 #
 # Purpose: qc input  file for allele/marker relationships
@@ -385,21 +440,8 @@ def qcOrgAllelePartMarker():
 
     # Find any MGI IDs from the relationship who's Organizer is  allele
     # and Participant is marker and:
-    # 1) Does not exist in the database.
-    # 2a) Organizer exists for a non-allele object.
-    # 2b) Participant exists for a non-marker object.
-    # 3a) Organizer exists for a allele, but the status is not 
-    #      "approved" or "autoload".
-    # 3b) Participant exists for a marker, but the status is not
-    #      "official" or "interim"
-    # 4) Are secondary
 
-    # Organizer MGI ID does not exist in the database
-    # union
-    # Organizer MGI ID exists in the database for non-allele object(s)
-    # union
-    # Organizer  has invalid status
-
+    # Organizer does not exist in the database
     cmds = '''select tmp.mgiID1, null "name", null "status"
                 from tempdb..%s tmp
                 where tmp.mgiID1TypeKey = 11
@@ -410,10 +452,12 @@ def qcOrgAllelePartMarker():
                 where a.numericPart = tmp.mgiID1
 		and a.prefixPart = 'MGI:')
 		order by tmp.mgiID1''' % idTempTable
-    print 'running sql for results1a %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'running sql for results1a %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
+	time.localtime(time.time()))
     sys.stdout.flush()
     results1a = db.sql(cmds, 'auto')
 
+    # Organizer exists for a non-allele object.
     cmds = '''select tmp.mgiID1, t.name, null "status"
                 from tempdb..%s tmp, ACC_Accession a1, ACC_MGIType t
                 where a1.numericPart = tmp.mgiID1
@@ -431,10 +475,12 @@ def qcOrgAllelePartMarker():
                         and a2._LogicalDB_key = 1
                         and a2._MGIType_key = 11)
 		order by tmp.mgiID1''' % idTempTable
-    print 'running sql for results1b %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'running sql for results1b %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
+	time.localtime(time.time()))
     sys.stdout.flush()
     results1b = db.sql(cmds, 'auto')
 
+    # Organizer has invalid status
     cmds = '''select tmp.mgiID1, t.name, vt.term as status
                 from tempdb..%s tmp,ACC_Accession a, ACC_MGIType t,
                         ALL_Allele aa, VOC_Term vt
@@ -452,16 +498,12 @@ def qcOrgAllelePartMarker():
                 order by tmp.mgiID1''' % idTempTable
 
     #print cmds
-    print 'running sql for results1c %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'running sql for results1c %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
+	time.localtime(time.time()))
     sys.stdout.flush()
     results1c = db.sql(cmds, 'auto')
 
     # Participant MGI ID does not exist in the database
-    # union
-    # Participant MGI ID exists in the database for non-allele object(s)
-    # union
-    # Participant  has invalid status
-
     cmds = '''select tmp.mgiID2, null "name", null "status"
                 from tempdb..%s tmp
                 where tmp.mgiID1TypeKey = 11
@@ -472,10 +514,12 @@ def qcOrgAllelePartMarker():
                 where a.numericPart = tmp.mgiID2
 		and a.prefixPart = 'MGI:')
 		order by tmp.mgiID2''' % idTempTable
-    print 'running sql for results2a %s ' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'running sql for results2a %s ' % time.strftime("%H.%M.%S.%m.%d.%y", \
+	time.localtime(time.time()))
     sys.stdout.flush()
     results2a = db.sql(cmds, 'auto')
- 
+
+    # Participant MGI ID exists in the database for non-marker object
     cmds = '''select tmp.mgiID2, t.name, null "status"
                 from tempdb..%s tmp, ACC_Accession a1, ACC_MGIType t
                 where a1.numericPart = tmp.mgiID2
@@ -493,10 +537,12 @@ def qcOrgAllelePartMarker():
                         and a2._LogicalDB_key = 1
                         and a2._MGIType_key = 2)
 		order by tmp.mgiID2''' % idTempTable
-    print 'running sql for results2b %s ' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'running sql for results2b %s ' % time.strftime("%H.%M.%S.%m.%d.%y", \
+	time.localtime(time.time()))
     sys.stdout.flush()
     results2b = db.sql(cmds, 'auto')
-             
+
+    # Participant has invalid status         
     cmds = '''select tmp.mgiID2, t.name, ms.status
                 from tempdb..%s tmp,ACC_Accession a, ACC_MGIType t,
                         MRK_Marker m, MRK_Status ms
@@ -512,8 +558,8 @@ def qcOrgAllelePartMarker():
                 and m._Marker_Status_key not in (1,3)
                 and m._Marker_Status_key = ms._Marker_Status_key
                 order by tmp.mgiID2''' % idTempTable
-    #print cmds
-    print 'running sql for results2c %s ' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'running sql for results2c %s ' % time.strftime("%H.%M.%S.%m.%d.%y", \
+	time.localtime(time.time()))
     sys.stdout.flush()
     results2c = db.sql(cmds, 'auto')
 
@@ -541,7 +587,8 @@ def qcOrgAllelePartMarker():
                 order by tmp.mgiID1''' % idTempTable
 
  
-    print 'running sql for results3 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'running sql for results3 %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
+	time.localtime(time.time()))
     sys.stdout.flush()
     results3 = db.sql(cmds, 'auto')
 
@@ -568,14 +615,17 @@ def qcOrgAllelePartMarker():
                       and a2._Object_key = m._Marker_key
                 order by tmp.mgiID2''' % idTempTable
 
-    print 'running sql for results4 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'running sql for results4 %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
+	time.localtime(time.time()))
     sys.stdout.flush()
     results4 = db.sql(cmds, 'auto')
     
+    # Organizer and Participant ID do not match
     cmds = '''select distinct tmp.mgiID1 as org, tmp.mgiID2 as part, 
 		    mo.chromosome as oChr, mp.chromosome as pChr
 		from tempdb..%s tmp,
-		ALL_Allele a, MRK_Marker mo, MRK_Marker mp, ACC_Accession ao, ACC_Accession ap
+		ALL_Allele a, MRK_Marker mo, MRK_Marker mp, ACC_Accession ao, 
+		    ACC_Accession ap
 		where tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
 		and tmp.mgiID1 > 0
@@ -592,16 +642,20 @@ def qcOrgAllelePartMarker():
                 and ap.preferred = 1
 		and ap._Object_key = mp._Marker_key
 		and mo.chromosome != mp.chromosome''' % idTempTable
-    print 'running sql for results5 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'running sql for results5 %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
+	time.localtime(time.time()))
     sys.stdout.flush()
     results5 = db.sql(cmds, 'auto')
 		
 	
-    print 'writing OrgAllelePartMarker reports %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'writing OrgAllelePartMarker reports %s' % time.strftime( \
+	"%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
     sys.stdout.flush()
-    if len(results1a) >0 or len(results1b) >0 or len(results1c) >0  or len(results2a) >0 or len(results2b) >0 or len(results2c):
+    if len(results1a) >0 or len(results1b) >0 or len(results1c) >0  or \
+	len(results2a) >0 or len(results2b) >0 or len(results2c):
         hasFatalErrors = 1
-        fpQcRpt.write(CRT + CRT + string.center('Invalid Allele/Marker Relationships',80) + CRT)
+        fpQcRpt.write(CRT + CRT + string.center('Invalid Allele/Marker ' + \
+	    'Relationships',80) + CRT)
         fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
              ('MGI ID','Object Type',
               'Status','Reason',CRT))
@@ -709,7 +763,8 @@ def qcOrgAllelePartMarker():
 
     if len(results3) >0 or len(results4) >0:
         hasFatalErrors = 1
-        fpQcRpt.write(CRT + CRT + string.center('Secondary MGI IDs used in Allele/Marker Relationships',80) + CRT)
+        fpQcRpt.write(CRT + CRT + string.center('Secondary MGI IDs used in ' + \
+	    'Allele/Marker Relationships',80) + CRT)
         fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
              ('2ndary MGI ID','Symbol',
               'Primary MGI ID','Organizer or Participant?',CRT))
@@ -735,7 +790,8 @@ def qcOrgAllelePartMarker():
 
     if len(results5) > 0:
 	hasFatalErrors = 1
-	fpQcRpt.write(CRT + CRT + string.center('Mismatched chromosome in Allele/Marker Relationships',80) + CRT)
+	fpQcRpt.write(CRT + CRT + string.center('Mismatched chromosome in ' + \
+	    'Allele/Marker Relationships',80) + CRT)
 	fpQcRpt.write('%-20s  %-20s  %-20s  %-20s%s' %
              ('Organizer MGI ID','Organizer chromosome', 
 		'Participant MGI ID', 'Participant chromosome', CRT))
@@ -744,7 +800,12 @@ def qcOrgAllelePartMarker():
 	# report Chromosome mismatch between Organizer and Participant
 	for r in results5:
 	    fpQcRpt.write('%-20s  %-20s  %-20s  %-20s%s' %
-	    ('MGI:%s' % r['org'], r['oChr'], 'MGI:%s' % r['part'], r['pChr'],  CRT))
+	    ('MGI:%s' % r['org'], r['oChr'], 'MGI:%s' % r['part'], \
+		r['pChr'],  CRT))
+
+    return
+
+# end qcOrgAllelePartMarker() -------------------------------
 
 #
 # Purpose: qc input  file for marker/marker relationships
@@ -806,7 +867,8 @@ def qcOrgMarkerPartMarker():
                 and m._Marker_Status_key = ms._Marker_Status_key 
                 order by tmp.mgiID1''' % (idTempTable, idTempTable, idTempTable)
     #print cmds
-    print 'running sql for results1 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'running sql for results1 %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
+	time.localtime(time.time()))
     sys.stdout.flush()
     results1 = db.sql(cmds, 'auto')
 
@@ -853,7 +915,8 @@ def qcOrgMarkerPartMarker():
                 and m._Marker_Status_key = ms._Marker_Status_key
                 order by tmp.mgiID2''' % (idTempTable, idTempTable, idTempTable)
     #print cmds
-    print 'running sql for results2 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'running sql for results2 %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
+	time.localtime(time.time()))
     sys.stdout.flush()
     results2 = db.sql(cmds, 'auto')
  
@@ -878,7 +941,8 @@ def qcOrgMarkerPartMarker():
                       and a2.preferred = 1
                       and a2._Object_key = m._Marker_key
                 order by tmp.mgiID1''' % idTempTable
-    print 'running sql for results3 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'running sql for results3 %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
+	time.localtime(time.time()))
     sys.stdout.flush()
     results3 = db.sql(cmds, 'auto')
 
@@ -904,15 +968,18 @@ def qcOrgMarkerPartMarker():
                       and a2._Object_key = m._Marker_key
                 order by tmp.mgiID2''' % idTempTable
 
-    print 'running sql for results4 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'running sql for results4 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , \
+	time.localtime(time.time()))
     sys.stdout.flush()
     results4 = db.sql(cmds, 'auto')
  
-    print 'writing OrgMarkerPartMarker reports  %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'writing OrgMarkerPartMarker reports  %s' % time.strftime( \
+	"%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
     sys.stdout.flush()
     if len(results1) >0 or len(results2) >0:
         hasFatalErrors = 1
-        fpQcRpt.write(CRT + CRT + string.center('Invalid Marker/Marker Relationships',80) + CRT)
+        fpQcRpt.write(CRT + CRT + string.center('Invalid Marker/Marker ' + \
+	    'Relationships',80) + CRT)
         fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
              ('MGI ID','Object Type',
               'Status','Reason',CRT))
@@ -967,7 +1034,8 @@ def qcOrgMarkerPartMarker():
 
     if len(results3) >0 or len(results4) >0:
         hasFatalErrors = 1
-        fpQcRpt.write(CRT + CRT + string.center('Secondary MGI IDs used in Marker/Marker Relationships',80) + CRT)
+        fpQcRpt.write(CRT + CRT + string.center('Secondary MGI IDs used in ' + \
+	'Marker/Marker Relationships',80) + CRT)
         fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
              ('2ndary MGI ID','Symbol',
               'Primary MGI ID','Organizer or Participant?',CRT))
@@ -990,12 +1058,25 @@ def qcOrgMarkerPartMarker():
 	    which = 'Participant'
 	    fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
 		(sMgiID, symbol, pMgiID, which,  CRT))
+    
+    return
+
+# end qcOrgMarkerPartMarker() -------------------------------
+
+#
+# Purpose: writes bad MGI IDs to the qc report
+# Returns: Nothing
+# Assumes: badIdDict has been created; see loadTempTables function
+# Effects: writes to report in the file system
+# Throws: Nothing
+#
 
 def qcInvalidMgiPrefix ():
     global hasFatalErrors
 
     # IDs w/o proper MGI ID prefix
-    print 'processing bad MGI IDs %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    print 'processing bad MGI IDs %s' % time.strftime("%H.%M.%S.%m.%d.%y" , \
+	time.localtime(time.time()))
     sys.stdout.flush()
     badIdList = []
     for id in badIdDict.keys():
@@ -1012,59 +1093,19 @@ def qcInvalidMgiPrefix ():
         fpQcRpt.write(15*'-' + '  ' + 25*'-' + CRT)
         fpQcRpt.write(string.join(badIdList, CRT))
 
+    return
+ 
+# end qcInvalidMgiPrefix() -------------------------------
+
 #
-# Purpose: run the QC checks
-# Returns: Nothing
+# Purpose: QC check the header row property columns
+# Returns: 2 if bad Property column format or name
 # Assumes: Nothing
-# Effects: Nothing
+# Effects: exits if bad property column format or name
 # Throws: Nothing
 #
-def runQcChecks ():
-
-    global hasFatalErrors, deleteRptList, deleteNotInDbList
-    #* col2 - category - verify in db
-    #* col3 - objId1 - id exists, is primary and correct type (from category)
-    # col5 - relationshipId - id exists, not obsolete, correct vocab/dag (from category)
-    #* col7 - objId2 - id exists, is primary and correct type (from category)
-    #* col9 - qual abbrev - if specified, abbrev exists
-    #* col10 - evid code - code exists
-    #* col11 - jNum - verify it exists
-    #* col12 - creator login - verify exists
-    #* col13 - notes
-    #* col14-N - properties columns, may be mixed with non-property columns
-    #*    which will be ignored
-    
-    #
-    # parse the input file 
-    #
-    
-    # QC error lists
-    actionList = []
-    categoryList = []
-    qualifierList = []
-    evidenceList = []
-    jNumList = []
-    userList = []
-    relIdList = []
-    obsRelIdList = []
-    relVocabList = []
-    relDagList = []
-    badPropList = []
-    badPropValueList = []
-
-    # integer index of valid property columns mapped to list where
-    # list[0] is column header, list[1] is True of at least one row for that
-    # property has data
-    # {14:['score', True], ...}
-    propIndexDict = {}
-    emptyPropColumnList = []
-    lineCt = 0
-
-    #
-    # Process the header for properties
-    #
-    header = fpInput.readline()  
-    lineCt = 1
+def qcHeader(header):
+    global propIndexDict, badPropList
 
     # all comparisons in lower case
     headerTokens = string.split(header.lower(), TAB)
@@ -1077,55 +1118,245 @@ def runQcChecks ():
     # example property header: 'Property:score' or 'Property:data_source'
     colCt = 0
     for h in headerTokens:
-	#print 'header: %s' % h
-	colCt += 1
-	if string.find(h, ':'):
-	    # remove leading/trailing WS e.g. ' Property : score ' -->
-	    # ['Property', 'score']
-	    tokens = map(string.strip, string.split(h, ':'))
-	    if tokens[0] == 'property':
-		if len(tokens) != 2:
-		    #print 'Property column with improper format'
-		    badPropList.append('%-12s  %-20s  %-30s' %
+        #print 'header: %s' % h
+        colCt += 1
+        if string.find(h, ':'):
+            # remove leading/trailing WS e.g. ' Property : score ' -->
+            # ['Property', 'score']
+            tokens = map(string.strip, string.split(h, ':'))
+	    # property column header must have 'Property:' prefix
+            if tokens[0] == 'property':
+		# property column header must have one value
+                if len(tokens) != 2:
+                    badPropList.append('%-12s  %-20s  %-30s' %
                         (lineCt, h, 'Property header with invalid format' ))
-		elif colCt <= numNonPropCol:
-		    #print 'Property found in columns 1-13'
-		    badPropList.append('%-12s  %-20s  %-30s' %
-			(lineCt, h, 'Property header in column 1-13' ))
-		else:
-		    value = tokens[1]
-		    if value not in validPropList:
-			badPropList.append('%-12s  %-20s  %-30s' %
+		# columns 1-13 may not be property columns
+                elif colCt <= numNonPropCol:
+                    badPropList.append('%-12s  %-20s  %-30s' %
+                        (lineCt, h, 'Property header in column 1-13' ))
+                else:
+                    value = tokens[1]
+		    # property name must be in the controlled vocab
+                    if value not in validPropList:
+                        badPropList.append('%-12s  %-20s  %-30s' %
                         (lineCt, h.strip(), 'Invalid property value' ))
-		    else:
-			propIndexDict[colCt-14] = [value, False]
+                    else:
+                        propIndexDict[colCt-14] = [value, False]
+
+    # if there are bad property column header(s) report them
     if len(badPropList):
-	fpQcRpt.write(CRT + CRT + string.center('Invalid Properties',60) + CRT)
+        fpQcRpt.write(CRT + CRT + string.center('Invalid Properties',60) + CRT)
         fpQcRpt.write('%-12s  %-20s  %-20s%s' %
              ('Line#','Property Header', 'Reason', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(string.join(badPropList, CRT))
         fpQcRpt.close()
-	sys.exit(2)
+        sys.exit(2)
 
-    #moved these to top so we know if they have errors prior to checking deletes
-    #############
-    # do the allele and marker organizer checks - these functions write
-    # any errors to the report
-    print 'Running qcInvalidMgiPrefix() %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+    return
+
+# end qcHeader() -------------------------------
+
+#
+# Purpose: QC a delete line
+# Returns: Nothing
+# Assumes: Nothing
+# Effects: Nothing
+# Throws: Nothing
+#
+def processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, \
+	evid, jNum, line, lineCt):
+    global deleteRptList, deleteNotInDbList
+
+    # resolve uniqueness key (UK) attributes to database keys
+    catKey = cDict['_Category_key']
+    orgMGITypeKey = cDict['_MGIType_key_1']
+    if orgMGITypeKey == 11:
+	#print 'allele'
+	orgKey = alleleDict[obj1Id][0]
+    else:
+	#print 'marker'
+	orgKey = markerDict[obj1Id][0]
+    rvKey = relDict['_Object_key']
+    partMGITypeKey = cDict['_MGIType_key_2']
+    partKey = markerDict[obj2Id][0]
+    qualKey = qualifierDict[qual]
+    evidKey = evidenceDict[evid]
+    refKey = jNumDict[jNum]
+
+    # query for relationships with the uniqueness key 
+    cmd = '''select r._Relationship_key, r._Category_key,
+	    r._Object_key_1,
+	    r._RelationshipTerm_key, r._Object_key_2,
+	    r._Qualifier_key, r._Evidence_key, r._Refs_key,
+	    t.term as propName, rp.value, nc.note
+	from MGI_Relationship r, MGI_Relationship_Property rp,
+	     VOC_Term t, MGI_Note n, MGI_NoteChunk nc
+	where r._Category_key = %s
+	and r._Object_key_1 = %s
+	and r._RelationshipTerm_key = %s
+	and r._Object_key_2 = %s
+	and r._Qualifier_key = %s
+	and r._Evidence_key = %s
+	and r._Refs_key = %s
+	and r._Relationship_key *= rp._Relationship_key
+	and rp._PropertyName_key *= t._Term_key
+	and r._Relationship_key *= n._Object_key
+	and n._Note_key *= nc._Note_key
+	and n._MGIType_key = 40''' % (catKey, orgKey, rvKey, \
+	    partKey, qualKey, evidKey, refKey) #, 'auto')
+    results = db.sql(cmd, 'auto')
+
+    # organize rows by relationships key, may be multi properties/notes/
+    # per relationship
+    #  delRelDict = {relKey:r, ...}
+    delRelDict = {}
+    for r in results:
+	relKey = r['_Relationship_key']
+	if not delRelDict.has_key(relKey):
+	    delRelDict[relKey] = []
+	delRelDict[relKey].append(r)
+    # if UK not found in database, write to qc.rpt
+    if not len(delRelDict):
+	print 'delete not in database'
+	deleteNotInDbList.append('%-12s   %-68s' % (lineCt, \
+	    string.strip(line)))
+    else:
+	# if delete in database write to delete.rpt and delete.sql
+	print 'delete in database'
+
+	# get the result set for each relationship defined by the UK
+	for rKey in delRelDict:
+	    rList = delRelDict[rKey]
+	    propList = []
+	    noteList = []
+	    for r in rList:
+		# get the list of propertyName:propertyValue pairs and save
+		prop = ''
+		propName = r['propName']
+		if propName != None:
+		    value = r['value']
+		    prop = '%s:"%s"' % (propName, value)
+		    if prop not in propList:
+			propList.append(prop)
+		#print 'prop: %s' % prop
+		# get the list of notes and save
+		note = r['note']
+		print 'note: %s' % note
+		if note != None:
+		    note = string.strip(note)
+		    if note not in noteList:
+			print 'appending note: "%s"' % note
+			noteList.append(string.strip(note))
+		print  noteList
+
+	    # get the organizer and participant symbols
+	    if catKey in (1001, 1002):  # marker/marker relationships
+		obj1Symbol = markerDict[obj1Id][1]
+		obj2Symbol = markerDict[obj2Id][1]
+	    else: # allele/marker relationships
+		obj1Symbol = alleleDict[obj1Id][1]
+		obj2Symbol = markerDict[obj2Id][1]
+
+	    # get the relationship term
+	    relTerm = relationshipDict[relId]['term']
+
+ 	    # create a report line and write it to the delete report
+	    rptLine = "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s" \
+		% (cat, TAB, obj1Id, TAB, obj1Symbol, TAB, relId, TAB, \
+		relTerm, TAB, obj2Id, TAB, obj2Symbol, TAB, qual, TAB, \
+		evid, TAB, jNum, TAB, string.join(propList, TAB), TAB, \
+		string.join(noteList, ''))
+	    deleteRptList.append(rptLine)
+
+	    # creat a delete sql line and write it to the delete sql file 
+	    sqlLine  = '''delete from MGI_Relationship
+		where _Relationship_key = %s%sgo%s''' % (rKey, CRT, CRT)
+	    fpDeleteSQL.write(sqlLine)
+
+    return
+
+# end processDelete() -------------------------------
+
+#
+# Purpose: run all QC checks
+# Returns: Nothing
+# Assumes: Nothing
+# Effects: writes reports to the file system
+# Throws: Nothing
+#
+def runQcChecks ():
+    global hasFatalErrors, deleteRptList, propIndexDict
+    global badPropList, actionList, categoryList, qualifierList
+    global evidenceList, jNumList, userList, relIdList, obsRelIdList
+    global relVocabList, relDagList, badPropList, badPropValueList
+
+    #
+    # Expected columns; those not listed are for curator use
+    #
+    # col1 - action 
+    # col2 - category
+    # col3 - objId1 - Organizer
+    # col5 - relationshipId 
+    # col7 - objId2 - Participant
+    # col9 - qual abbrev 
+    # col10 - evid code 
+    # col11 - jNum 
+    # col12 - creator login 
+    # col13 - notes
+    # col14-N - properties columns
+    
+    # integer index of valid property columns mapped to list where
+    # list[0] is column header, list[1] is True if at least one row for that
+    # property has data
+    # {14:['score', True], ...}
+    propIndexDict = {}
+
+    # list of property columns with no data
+    emptyPropColumnList = []
+
+    # current line number we are parsing
+    lineCt = 0
+    
+    #
+    # Process the header for properties
+    #
+
+    header = fpInput.readline()  
+    lineCt = 1
+    print 'Running qcHeader() %s' % time.strftime("%H.%M.%S.%m.%d.%y" , \
+	time.localtime(time.time()))
+    qcHeader(header)
+
+    #
+    # do the organizer/participant ID checks - these functions use tempdb
+    # and write any errors to the directly to the report
+    #
+    print 'Running qcInvalidMgiPrefix() %s' % time.strftime( \
+	"%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
     qcInvalidMgiPrefix()
-    print 'Running qcOrgAllelePartMarker() %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+
+    print 'Running qcOrgAllelePartMarker() %s' % time.strftime( \
+	"%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
     qcOrgAllelePartMarker()
-    print 'Running qcOrgMarkerPartMarker() %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+
+    print 'Running qcOrgMarkerPartMarker() %s' % time.strftime( \
+	"%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
     qcOrgMarkerPartMarker()
-    ##################
+   
+    #
+    # Iterate through the input file to do the remaining QC checks
+    #
     line = fpInput.readline()
     lineCt += 1
     while line:
 	# get the first 13 lines - these are fixed columns
-	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note) = map(string.lower, map(string.strip, string.split(line, TAB))[:13])
-        remainingTokens = map(string.lower, map(string.strip, string.split(line
-, TAB))[13:])
+	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, \
+	    qual, evid, jNum, creator, note) = map( \
+	      string.lower, map(string.strip, string.split( \
+		line, TAB))[:13])
+        remainingTokens = map(string.lower, map(string.strip, string.split( \
+	    line, TAB))[13:])
 	#print remainingTokens
 	if action != 'add' and action != 'delete':
 	    hasFatalErrors = 1
@@ -1178,8 +1409,6 @@ def runQcChecks ():
 	    if relDict['isObsolete'] != 0:
 		hasFatalErrors = 1
 		obsRelIdList.append('%-12s  %-20s' % (lineCt, relId))
-	    #print 'Incoming vocab key: %s Category vocab key: %s' % (relDict['_Vocab_key'], cDict['_RelationshipVocab_key'])
-	    #print 'Rel vocab key: %s, cat vocab key %s' % (relDict['_Vocab_key'], cDict['_RelationshipVocab_key'])
 
 	    # is the relationship vocab different than the category vocab?
 	    # NOTE: since we are only using one vocab at this time, this
@@ -1192,109 +1421,14 @@ def runQcChecks ():
 	    if relDict['_DAG_key'] != cDict['_RelationshipDAG_key']:
 		hasFatalErrors = 1
 		relDagList.append('%-12s  %-20s' % (lineCt, relId))
-
+	
 	# process a delete only if no fatal errors
 	if action == 'delete' and not hasFatalErrors:
 	    print 'processing delete'
-	    # get attributes of the uniqueness key (UK)
-	    catKey = cDict['_Category_key']
-	    orgMGITypeKey = cDict['_MGIType_key_1']
-	    print 'obj1Id %s' % obj1Id
-	    if orgMGITypeKey == 11:
-		#print 'allele'
-		orgKey = alleleDict[obj1Id][0]
-	    else:
-		#print 'marker'
-		orgKey = markerDict[obj1Id][0]
-	    rvKey = relDict['_Object_key']
-	    partMGITypeKey = cDict['_MGIType_key_2']
-	    #print 'obj2Id %s' % obj2Id
-	    partKey = markerDict[obj2Id][0]
-	    qualKey = qualifierDict[qual]
-	    evidKey = evidenceDict[evid]
-	    refKey = jNumDict[jNum]
-	    cmd = '''select r._Relationship_key, r._Category_key, 
-		    r._Object_key_1, 
-		    r._RelationshipTerm_key, r._Object_key_2, 
-		    r._Qualifier_key, r._Evidence_key, r._Refs_key,
-		    t.term as propName, rp.value, nc.note
-		from MGI_Relationship r, MGI_Relationship_Property rp,
-		     VOC_Term t, MGI_Note n, MGI_NoteChunk nc
-		where r._Category_key = %s
-		and r._Object_key_1 = %s
-		and r._RelationshipTerm_key = %s
-		and r._Object_key_2 = %s
-		and r._Qualifier_key = %s
-		and r._Evidence_key = %s
-		and r._Refs_key = %s
-		and r._Relationship_key *= rp._Relationship_key
-		and rp._PropertyName_key *= t._Term_key
-		and r._Relationship_key *= n._Object_key
-		and n._Note_key *= nc._Note_key
-		and n._MGIType_key = 40''' % (catKey, orgKey, rvKey, partKey, qualKey, evidKey, refKey) #, 'auto')
-	    print line
-	    print cmd
-	    results = db.sql(cmd, 'auto')
+	    processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, \
+		evid, jNum, line, lineCt)
 
-	    #  delRelDict = {relKey:r, ...}
-	    # organize rows by relationships key, may be multi properties/notes/
-	    # per relationship
-	    delRelDict = {}
-	    for r in results:
-		relKey = r['_Relationship_key']
-		if not delRelDict.has_key(relKey):
-		    delRelDict[relKey] = []
-		delRelDict[relKey].append(r)
-	    # if UK not found in database, write to qc.rpt
-	    #print 'delRelDict'
-	    #print delRelDict
-	    if not len(delRelDict):
-		print 'delete not in database'
-		deleteNotInDbList.append('%-12s   %-68s' % \
-		    (lineCt, string.strip(line)))
-
-	    else:
-		print 'delete in database'
-		# write to delete.rpt and delete.sql
-		for rKey in delRelDict:
-		    rList = delRelDict[rKey]
-		    propList = []
-		    noteList = []
-		    for r in rList:
-			prop = ''
-			propName = r['propName']
-			if propName != None:
-			    value = r['value']
-			    prop = '%s:"%s"' % (propName, value)
-			    if prop not in propList:
-				propList.append(prop)
-			#print 'prop: %s' % prop
-			note = r['note']
-			print 'note: %s' % note
-			if note != None:
-			    note = string.strip(note)
-			    if note not in noteList:
-				print 'appending note: "%s"' % note
-				noteList.append(string.strip(note))
-			print  noteList
-		    if catKey in (1001, 1002):
-			obj1Symbol = markerDict[obj1Id][1]
-			obj2Symbol = markerDict[obj2Id][1]
-		    else:
-			obj1Symbol = alleleDict[obj1Id][1]
-                        obj2Symbol = markerDict[obj2Id][1]
-		    relTerm = relationshipDict[relId]['term']
-		    rptLine = "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s" % (cat, TAB, obj1Id, TAB, obj1Symbol, TAB, relId, TAB, relTerm, TAB, obj2Id, TAB, obj2Symbol, TAB, qual, TAB, evid, TAB, jNum, TAB, string.join(propList, TAB),TAB, string.join(noteList, ''))			
-		    deleteRptList.append(rptLine)
-		    sqlLine  = '''delete from MGI_Relationship where _Relationship_key = %s%sgo%s''' % (rKey, CRT, CRT)
-		    fpDeleteSQL.write(sqlLine)
-		    #START HERE
-		    # to do:
-		    # done write to sql file
-		    # done - at end process deleteRptList to delete report
-		    # done - num del to warning file to be printed to stdout 
-		    # report properties and notes to delete.rpt
-	# We don't check properties for deletes
+	# We only check properties for action=add i.e. not for deletes
 	if action == 'add':
 	    for i in propIndexDict.keys():
 		#print '%s: %s' % (i, propIndexDict[i][0])
@@ -1307,7 +1441,8 @@ def runQcChecks ():
 		if propertyName == 'score' and propertyValue != '':
 		    #print 'property is score, value is %s' % propertyValue
 		    #print string.find(propertyValue, '+') == 0 
-		    if string.find(propertyValue, '+') == 0 or string.find(propertyValue, '-') == 0:
+		    if string.find(propertyValue, '+') == 0 or \
+			  string.find(propertyValue, '-') == 0:
 			propertyValue = propertyValue[1:]
 			#print propertyValue
 		    try:
@@ -1315,18 +1450,18 @@ def runQcChecks ():
 		    except:
 			#print 'invalid score: %s' % propertyValue
 			hasFatalErrors = 1
-			badPropValueList.append('%-12s   %-20s  %-20s' % (lineCt, propertyName, propertyValue))
+			badPropValueList.append('%-12s   %-20s  %-20s' % \
+			    (lineCt, propertyName, propertyValue))
 		    #print 'propertyValueFloat: %s' % propertyValueFloat
 	
 	line = fpInput.readline()
 	lineCt += 1
 
-    # We don't check properties for deletes
+    #
+    # Check for no data in property columns - 
+    #     we don't check properties for deletes
+    #
     if action == 'add':	
-	# check for no data in a property column and write out to intermediate
-	# file. This is a warning report
-	#print 'propertyIndexDict'
-	#print propIndexDict
 	for i in propIndexDict.keys():
 	    if propIndexDict[i][1] == False:
 		emptyPropColumnList.append (propIndexDict[i][0])
@@ -1334,19 +1469,31 @@ def runQcChecks ():
 	    fpWarnRpt.write('\nProperty Columns with no Data: %s' % CRT)
 	    for p in emptyPropColumnList:
 		fpWarnRpt.write('    %s%s' % (p, CRT))
+    #
+    # Now write any errors to the report
+    #
+    writeReport()
 
-    # do the allele and marker organizer checks - these functions write 
-    # any errors to the report
-    #print 'Running qcInvalidMgiPrefix() %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
-    #qcInvalidMgiPrefix()
-    #print 'Running qcOrgAllelePartMarker() %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
-    #qcOrgAllelePartMarker()
-    #print 'Running qcOrgMarkerPartMarker() %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
-    #qcOrgMarkerPartMarker()
+    return
 
-    # write errors to the report
+# end runQcChecks() -------------------------------
+
+#
+# Purpose: writes out errors to the qc report
+# Returns: Nothing
+# Assumes: Nothing
+# Effects: writes report to the file system
+# Throws: Nothing
+#
+
+def writeReport():
+    global hasFatalErrors
+    #
+    # Now write any errors to the report
+    #
     if len(actionList):
-	fpQcRpt.write(CRT + CRT + string.center('Invalid Action Values',60) + CRT)
+	fpQcRpt.write(CRT + CRT + string.center('Invalid Action Values',60) + \
+	    CRT)
         fpQcRpt.write('%-12s  %-20s%s' %
              ('Line#','Action', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
@@ -1367,7 +1514,8 @@ def runQcChecks ():
         fpQcRpt.write(string.join(qualifierList, CRT))
 
     if len(evidenceList):
-	fpQcRpt.write(CRT + CRT + string.center('Invalid Evidence Codes',60) + CRT)
+	fpQcRpt.write(CRT + CRT + string.center('Invalid Evidence Codes',60) + \
+	    CRT)
         fpQcRpt.write('%-12s  %-20s%s' %
              ('Line#','Evidence Code', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
@@ -1388,68 +1536,91 @@ def runQcChecks ():
         fpQcRpt.write(string.join(userList, CRT))
 
     if len(relIdList):
-	fpQcRpt.write(CRT + CRT + string.center('Invalid Relationship IDs',60) + CRT)
+	fpQcRpt.write(CRT + CRT + string.center('Invalid Relationship IDs',60) \
+          + CRT)
         fpQcRpt.write('%-12s  %-20s%s' %
              ('Line#','Relationship ID', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(string.join(relIdList, CRT))
 
     if len(obsRelIdList):
-	fpQcRpt.write(CRT + CRT + string.center('Obsolete Relationship IDs',60) + CRT)
+	fpQcRpt.write(CRT + CRT + string.center('Obsolete Relationship IDs',60)\
+ 	   + CRT)
         fpQcRpt.write('%-12s  %-20s%s' %
              ('Line#','Relationship ID', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(string.join(obsRelIdList, CRT))
 
     if len(relVocabList):
-	fpQcRpt.write(CRT + CRT + string.center('Relationship Vocab not the same as Category Vocab',60) + CRT)
+	fpQcRpt.write(CRT + CRT + string.center('Relationship Vocab not ' + \
+	    'the  same as Category Vocab',60) + CRT)
         fpQcRpt.write('%-12s  %-20s%s' %
              ('Line#','Relationship ID', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(string.join(relVocabList, CRT))
 
     if len(relDagList):
-	fpQcRpt.write(CRT + CRT + string.center('Relationship DAG not the same as Category DAG',60) + CRT)
+	fpQcRpt.write(CRT + CRT + string.center('Relationship DAG not the ' + \
+	    'same as Category DAG',60) + CRT)
         fpQcRpt.write('%-12s  %-20s%s' %
              ('Line#','Relationship ID', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(string.join(relDagList, CRT))
     if len(badPropValueList):
-	fpQcRpt.write(CRT + CRT + string.center('Invalid Property Values',60) + CRT)
+	fpQcRpt.write(CRT + CRT + string.center('Invalid Property Values',60)+\
+	    CRT)
         fpQcRpt.write('%-12s  %-20s  %-20s%s' %
              ('Line#','Property', 'Value', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(string.join(badPropValueList, CRT))
     if len(deleteNotInDbList):
 	hasFatalErrors = 1
-	fpQcRpt.write(CRT + CRT + string.center('Deletes not in Database',60) + CRT)
+	fpQcRpt.write(CRT + CRT + string.center('Deletes not in Database',60)+\
+	    CRT)
         fpQcRpt.write('%-12s  %-68s %s' % ('Line#','Line', CRT))
         fpQcRpt.write(12*'-' + '  ' + 68*'-' + CRT)
         fpQcRpt.write(string.join( deleteNotInDbList, CRT))
     # if no fatal errors found write all deletes to informational delete report
     if len(deleteRptList) and not hasFatalErrors:
-	fpWarnRpt.write('\nProcessing the specified input file will delete %s relationship records from the database. See %s for details %s' % (len(deleteRptList), deleteRptFile, CRT))
+	fpWarnRpt.write('\nProcessing the specified input file will delete ' + \
+	    '%s relationship records from the database. See %s for details %s' \
+	    % (len(deleteRptList), deleteRptFile, CRT))
 
-	fpDeleteRpt.write(CRT + CRT + string.center('The following relationships will be deleted from the database',60) + CRT)
+	fpDeleteRpt.write(CRT + CRT + string.center('The following ' + \
+	    'relationships will be deleted from the database',60) + CRT)
         fpDeleteRpt.write(80*'-' + CRT)
         fpDeleteRpt.write(string.join( deleteRptList, CRT))
+
+    return
+
+# end writeReport() -------------------------------
 
 #
 # Purpose: Close the files.
 # Returns: Nothing
 # Assumes: Nothing
-# Effects: Nothing
+# Effects: Modifies global variables
 # Throws: Nothing
 #
 def closeFiles ():
-    global fpInput, fpQcRpt, fpDeleteRpt, fpDeleteSQL
+    global fpInput, fpQcRpt, fpWarnRpt, fpDeleteRpt, fpDeleteSQL
     fpInput.close()
     fpQcRpt.close()
     fpWarnRpt.close()
     fpDeleteRpt.close()
     fpDeleteSQL.close()
+
     return
 
+# end closeFiles) -------------------------------
+
+#
+# Purpose: Load tempdb table with input file data
+# Returns: Nothing
+# Assumes: Connection to db has been established
+# Effects: Modifies global variables
+# Throws: Nothing
+#
 def loadTempTables ():
     global badIdDict
 
@@ -1472,18 +1643,27 @@ def loadTempTables ():
     junk = fp.readline() # header
     line = fp.readline()
     while line:
-	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note) = map(string.strip, string.split(line, TAB))[:13]
+	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, \
+	    evid, jNum, creator, note) = map(string.strip, string.split( \
+		line, TAB))[:13]
 	if not categoryDict.has_key(cat):
             print 'FATAL ERROR Category: %s does not exist' % cat
             sys.exit(1)
 
+	# we are loading just the numeric part of the MGI ID for efficiency
+	# if and Org ID or a Part ID is improperly formatted we load it as
+ 	# 0 so we can QC the good ID
 	badIdOrg = 0
 	badIdPart = 0
 	obj1IdInt = 0
 	obj2IdInt = 0
-	#print line
+
+	#
+        # Process the Organizer ID	
+	#
 	# ID must have ':', suffix must exist, prefix must be 'MGI'
-	if obj1Id.find(':') == -1 or len(obj1Id.split(':')[1]) == 0 or obj1Id.split(':')[0] != 'MGI':
+	if obj1Id.find(':') == -1 or len(obj1Id.split(':')[1]) == 0 or \
+	        obj1Id.split(':')[0] != 'MGI':
 	    badIdDict[obj1Id] = 'Organizer'
 	    badIdOrg = 1
 	    #print 'badId Organizer: %s' % obj1Id
@@ -1492,13 +1672,18 @@ def loadTempTables ():
 	    # suffix must be integer
             try:
                 int(obj1IdInt)
-            except:	# if suffix not integer assign it 0  so we can load something into db
-			# we'll filter it out later
+            except:	# if suffix not integer assign it 0  so we can load 
+		        # something into db, we'll filter it out later
                 badIdDict[obj1Id] = 'Organizer'
 		badIdOrg = 1
 		obj1IdInt = 0
+
+	#
+	# Process the Participant ID
+	#
 	# ID must have ':', suffix must exist, prefix must be 'MGI'
-	if obj2Id.find(':') == -1 or len(obj2Id.split(':')[1]) == 0 or  obj2Id.split(':')[0] != 'MGI':
+	if obj2Id.find(':') == -1 or len(obj2Id.split(':')[1]) == 0 or \
+		obj2Id.split(':')[0] != 'MGI':
             badIdDict[obj2Id] = 'Participant'
             badIdPart = 1
 	    #print 'badId Participant %s' % obj2Id
@@ -1507,12 +1692,15 @@ def loadTempTables ():
 	    # suffix must be integer
             try:
                 int(obj2IdInt)
-            except:	# if suffix not integer assign it 0 so we can load something into db
-			# we'll filter it out later
+            except:	# if suffix not integer assign it 0 so we can load 
+			# something into db we'll filter it out later
                 badIdDict[obj2Id] = 'Organizer'		
 		badIdPart = 1
 		obj2IdInt = 0
-	# if we have at least one good ID, load into temp table, a bad id will be zero
+	#
+	# if we have at least one good ID, load into temp table
+	#   bad id will be zero
+	#
 	if not (badIdOrg and badIdPart):
 	    # get the MGI Types
 	    obj1IdTypeKey = categoryDict[cat]['_MGIType_key_1']
@@ -1520,7 +1708,8 @@ def loadTempTables ():
 
 	    #print 'obj1Id: %s obj1IdInt: %s' % (obj1Id, obj1IdInt)
 	    #print 'obj2Id: %s obj2IdInt: %s' % (obj2Id, obj2IdInt)
-	    fpIDBCP.write('%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, CRT))
+	    fpIDBCP.write('%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, obj1IdTypeKey, \
+		TAB, obj2IdInt, TAB, obj2IdTypeKey, CRT))
         line = fp.readline()
 
     #
@@ -1534,39 +1723,50 @@ def loadTempTables ():
     #
     #print 'Load the relationship data into the temp table: %s' % idTempTable
     sys.stdout.flush()
-    bcpCmd = 'cat %s | bcp tempdb..%s in %s -c -t"%s" -S%s -U%s' % (passwordFile, idTempTable, idBcpFile, TAB, db.get_sqlServer(), db.get_sqlUser())
+    bcpCmd = 'cat %s | bcp tempdb..%s in %s -c -t"%s" -S%s -U%s' % ( \
+	passwordFile, idTempTable, idBcpFile, TAB, db.get_sqlServer(), \
+	    db.get_sqlUser())
     rc = os.system(bcpCmd)
     if rc <> 0:
         closeFiles()
         sys.exit(1)
     
     db.sql('''create index idx1 on tempdb..%s (mgiID1)''' % idTempTable, None)
-    db.sql('''create index idx2 on tempdb..%s (mgiID1TypeKey)'''  % idTempTable, None)
+    db.sql('''create index idx2 on tempdb..%s (mgiID1TypeKey)'''  % \
+	idTempTable, None)
     db.sql('''create index idx3 on tempdb..%s (mgiID2)''' % idTempTable, None)
-    db.sql('''create index idx4 on tempdb..%s (mgiID2TypeKey)''' % idTempTable, None)
+    db.sql('''create index idx4 on tempdb..%s (mgiID2TypeKey)''' % \
+	idTempTable, None)
 
     return
+
+# end loadTempTables() -------------------------------
 
 #
 # Main
 #
-print 'checkArgs(): %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+print 'checkArgs(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
+    time.localtime(time.time()))
 sys.stdout.flush()
 checkArgs()
 
-print 'init(): %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+print 'init(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
+    time.localtime(time.time()))
 sys.stdout.flush()
 init()
 
-print 'runQcChecks(): %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+print 'runQcChecks(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
+    time.localtime(time.time()))
 sys.stdout.flush()
 runQcChecks()
 
-print 'closeFiles(): %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+print 'closeFiles(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", 
+    time.localtime(time.time()))
 sys.stdout.flush()
 closeFiles()
 
-print 'done: %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time()))
+print 'done: %s' % time.strftime("%H.%M.%S.%m.%d.%y", 
+    time.localtime(time.time()))
 
 
 if hasFatalErrors == 1 : 

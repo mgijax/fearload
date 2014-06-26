@@ -1,5 +1,5 @@
 TAG: fearload-5-1-7-28
-DATE: 06/??/2014
+DATE: 06/26/2014
 STAFF: sc
 CHANGES: US17 - support curators running QC/publish scripts
 1) fearQC.sh - append user ID to temp table name so multi curators
@@ -8,6 +8,9 @@ CHANGES: US17 - support curators running QC/publish scripts
 3) publishFear - added
 4) Install - uncommented 'publishFear'
 5) index.html - added
+6) commenting updates: fearload.sh, fearload.py, fearQC.sh, fearQC.py
+7) fearload.config.default - removed some unused variables
+8) fearQC.py factoring - created functions: qcHeader, processDelete, writeReport
 
 TAG: fearload-5-1-7-27
 DATE: 06/19/2014

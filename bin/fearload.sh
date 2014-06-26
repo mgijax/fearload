@@ -38,6 +38,10 @@ fi
 
 . ${CONFIG_LOAD}
 
+#
+# Just a verification of where we are at
+#
+
 echo "MGD_DBSERVER: ${MGD_DBSERVER}"
 echo "MGD_DBNAME: ${MGD_DBNAME}"
 
@@ -62,6 +66,7 @@ fi
 #
 # verify input file exists and is readable
 #
+
 if [ ! -r ${INPUT_FILE_DEFAULT} ]
 then
     # set STAT for endJobStream.py
@@ -72,32 +77,36 @@ fi
 #
 # createArchive including OUTPUTDIR, startLog, getConfigEnv
 # sets "JOBKEY"
+#
+
 preload ${OUTPUTDIR}
 
 #
 # rm all files/dirs from OUTPUTDIR
 #
+
 cleanDir ${OUTPUTDIR}
 
+# NOTE: keep this commented out until production release
 #
 # There should be a "lastrun" file in the input directory that was created
 # the last time the load was run for this input file. If this file exists
 # and is more recent than the input file, the load does not need to be run.
 #
-LASTRUN_FILE=${INPUTDIR}/lastrun
-if [ -f ${LASTRUN_FILE} ]
-then
-    if /usr/local/bin/test ${LASTRUN_FILE} -nt ${INPUT_FILE_DEFAULT}
-    then
-
-        echo "Input file has not been updated - skipping load" | tee -a ${LOG_PROC}
-        # set STAT for shutdown
-        STAT=0
-        echo 'shutting down'
-        shutDown
-        exit 0
-    fi
-fi
+#LASTRUN_FILE=${INPUTDIR}/lastrun
+#if [ -f ${LASTRUN_FILE} ]
+#then
+#    if /usr/local/bin/test ${LASTRUN_FILE} -nt ${INPUT_FILE_DEFAULT}
+#    then
+#
+#        echo "Input file has not been updated - skipping load" | tee -a ${LOG_PROC}
+#        # set STAT for shutdown
+#        STAT=0
+#        echo 'shutting down'
+#        shutDown
+#        exit 0
+#    fi
+#fi
 
 echo "" >> ${LOG_DIAG}
 date >> ${LOG_DIAG}

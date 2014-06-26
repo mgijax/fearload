@@ -26,19 +26,17 @@
 #	    10. Evidence code
 #	    11. J: Number
 #	    12. Curator login
-#	    13. Properties in key=value pairs (Optional)
-#	    14. Notes (Optional)
+#	    13. Notes (Optional)
+#	    14. Properties in key=value pairs (Optional)
 #
 #	2. Configuration - see fearload.config
-#	    1. 
-#	    2. 
 #
 #  Outputs:
 #
 #       1. MGI_Relationship.bcp
 #	2. MGI_Relationship_Property.bcp
-#	3. MGI_Note (TBD)
-#	4. MGI_NoteChunk (TBD)
+#	3. MGI_Note 
+#	4. MGI_NoteChunk 
 #
 #  Exit Codes:
 #
@@ -47,6 +45,8 @@
 #
 #  Assumes:
 #
+#      1) Sanity/QC checks have been run and all errors fixed
+#	
 #  Implementation:
 #
 #      This script will perform following steps:
@@ -54,18 +54,28 @@
 #      1) Validate the arguments to the script.
 #      2) Perform initialization steps.
 #      3) Open the input/output files.
-#      4) Generate the sanity reports.
-#      5) Run the load if sanity checks pass
+#      4) Run the sanity/QC  checks
+#      5) Run the load if sanity/QC checks pass
 #      6) Close the input/output files.
+#      7) Note: this script ignores deletes as these have already
+#	    been written to an SQL file by fearQC.py
 #
 #  Notes:  None
+#
+###########################################################################
+#
+#  Modification History:
+#
+#  Date        SE   Change Description
+#  ----------  ---  -------------------------------------------------------
+#
+#  03/11/2014  sc  Initial development
 #
 ###########################################################################
 
 import sys
 import os
 import string
-import Set
 
 import db
 import mgi_utils
@@ -84,14 +94,12 @@ USAGE='fearload.py'
 
 # input file
 inFile = os.environ['INPUT_FILE_DEFAULT']
+
+# output bcp files
 relationshipFile =   os.environ['RELATIONSHIP_BCP']
 propertyFile = os.environ['PROPERTY_BCP']
 noteFile = os.environ['NOTE_BCP']
 noteChunkFile = os.environ['NOTECHUNK_BCP']
-relVocabKey = os.environ['RELATIONSHIP_VOCAB_KEY']
-qualVocabKey = os.environ['QUALIFIER_VOCAB_KEY']
-evidVocabKey = os.environ['EVIDENCE_VOCAB_KEY']
-relationshipNoteTypeKey =  os.environ['RELATIONSHIP_NOTE_KEY']
 
 # file descriptors
 fpInFile = ''
@@ -100,7 +108,7 @@ fpPropertyFile = ''
 fpNoteFile = ''
 fpNoteChunkFile = ''
 
-# database primary keys, the next one available
+# database primary keys, will be set to the next available from the db
 nextRelationshipKey = 1000	# MGI_Relationship._Relationship_key
 nextPropertyKey = 1000		# MGI_Relationship_Property._Property_key
 nextNoteKey = 1000		# MGI_Note._Note_key
@@ -108,7 +116,10 @@ nextNoteKey = 1000		# MGI_Note._Note_key
 # relationship mgiType 
 relationshipMgiTypeKey = 40
 
-# category lookup {name:Category object, ...}
+# relationship note type key
+relationshipNoteTypeKey =  1042
+
+# category lookup {name:result set, ...}
 categoryDict = {}
 
 # relationship term lookup {term:key, ...}
@@ -116,13 +127,14 @@ relationshipDict = {}
 
 # qualifier term lookup {term:key, ...}
 qualifierDict = {}
+
 # default when qualifier is blank in the input file
 defaultQual = 'not specified'
 
-# evidence term lookup {term:key, ...}
+# evidence term lookup {termAbbrev:key, ...}
 evidenceDict = {}
 
-# reference ID (JNum) lookup {term:key, ...}
+# reference ID (JNum) lookup {jNum:refsKey, ...}
 jNumDict = {}
 
 # marker lookup {mgiID:key, ...)
@@ -141,7 +153,7 @@ def checkArgs ():
     # Purpose: Validate the arguments to the script.
     # Returns: Nothing
     # Assumes: Nothing
-    # Effects: exits if args found on the command line
+    # Effects: exits if unexpected args found on the command line
     # Throws: Nothing
 
     if len(sys.argv) != 1:
@@ -152,17 +164,23 @@ def checkArgs ():
 # end checkArgs() -------------------------------
 
 def init():
-    # Purpose: create lookups, open files
+    # Purpose: create lookups, open files, create db connection, gets max
+    #	keys from the db
     # Returns: Nothing
     # Assumes: Nothing
-    # Effects: Sets global variables, exits if a file cant be opened,
+    # Effects: Sets global variables, exits if a file can't be opened,
     #  creates files in the file system, creates connection to a database
 
     global nextRelationshipKey, nextPropertyKey, nextNoteKey
     global categoryDict, relationshipDict, propertyDict
     global qualifierDict, evidenceDict, jNumDict, userDict, markerDict
     global alleleDict
+
+    #
+    # Open input and output files
+    #
     openFiles()
+
     #
     # create database connection
     #
@@ -188,6 +206,7 @@ def init():
         nextPropertyKey = 1000
     else:
         nextPropertyKey = results[0]['nextKey']
+
     #
     # get next MGI_Note key
     #
@@ -278,8 +297,6 @@ def init():
 	userDict[r['login'].lower()] = r['_User_key']
 
     # property term lookup
-
-    # FeaR property term lookup
     results = db.sql('''select term, _Term_key
         from VOC_Term
         where _Vocab_key = 97''', 'auto')
@@ -287,13 +304,16 @@ def init():
         propertyDict[r['term'].lower()] = r['_Term_key']
 
     db.useOneConnection(0)
-# end init()
+    
+    return
+
+# end init() -------------------------------
 
 def openFiles ():
     # Purpose: Open input/output files.
     # Returns: Nothing
     # Assumes: Nothing
-    # Effects: Sets global variables, exits if a file cant be opened, 
+    # Effects: Sets global variables, exits if a file can't be opened, 
     #  creates files in the file system
 
     global fpInFile, fpRelationshipFile, fpPropertyFile
@@ -330,6 +350,7 @@ def openFiles ():
 	    noteChunkFile
         sys.exit(1)
 
+    return
 
 # end openFiles() -------------------------------
 
@@ -361,17 +382,25 @@ def createFiles( ):
     # Assumes: file descriptors have been initialized
     # Effects: sets global variables, writes to the file system
     # Throws: Nothing
+
     global nextRelationshipKey, nextNoteKey, nextPropertyKey
 
     # remove the header line
     header = fpInFile.readline()
 
-    # find properties columns and map their column number to their property
-    # name {colNum:propNameKey, ...}
+    #
+    # find properties columns in the header and map their column number to 
+    # their property name.
+    # example property header: 'Property:score' or 'Property:data_source
+
+    # {colNum:propNameKey, ...}
     inputPropDict = {}
 
-    # example property header: 'Property:score' or 'Property:data_source
+    # get all property tokens
     propTokens = map(string.strip, string.split(header, TAB))[13:]
+
+    # iterate thru property column headers and load dictionary with the position
+    # key and property name value
     colCt = 0
     for p in propTokens:
 	colCt += 1
@@ -379,28 +408,44 @@ def createFiles( ):
 	    tokens = map(string.strip, string.split(p, ':'))
             if tokens[0].lower() == 'property' and len(tokens) == 2:
 		propName = tokens[1].lower()
-		# assume QC script has verified
+		# assume QC script has verified the propName
 		inputPropDict[colCt] = propertyDict[propName]
-    #print inputPropDict
 
+    #
+    # Iterate throught the input file
+    #
     line = fpInFile.readline()
     while line:
 
- 	# get the first 13 lines - these are fixed columns; map to lower case
-	# moved note to 'remaining columns' as we don't want in lower case
+ 	# get the first 12 lines - these are fixed columns; map to lower case
+	# moved note (13) to 'remaining columns' as we don't want in lower case
 	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator) = map(string.lower, map(string.strip, string.split(line, TAB))[:12])
-	remainingTokens = map(string.strip, string.split(line, TAB))[12:]
-	note = remainingTokens[0]
-	remainingTokens = remainingTokens[1:]
+
+	# get notes column (13) and any property columns (14+)
+	remainingColumns = map(string.strip, string.split(line, TAB))[12:]
+
+        # get notes column
+	note = remainingColumns[0]
+
+	# get properties columns
+	remainingColumns = remainingColumns[1:]
+
+	# skip deletes as they have been processed by the QC script 
+	# - if any were found, and passed QC, they were written to an 
+	# sql file for execution by the wrapper fearload.sh
 	if action == 'delete':
 	    line = fpInFile.readline()
 	    continue
+
+	# get the category key
 	if categoryDict.has_key(cat):
 	    c = categoryDict[cat]
 	    catKey = c.key
 	else:
 	    print 'category (%s) not found in line ' % (cat, line)
 	    continue
+
+	# get the organizer key, determining if allele or marker
 	if c.mgiTypeKey1 == 2:
 	    if markerDict.has_key(obj1Id):
 		objKey1 = markerDict[obj1Id]
@@ -416,12 +461,14 @@ def createFiles( ):
 	else:
 	    print 'Organizer mgiType not supported in line %s' % (obj1Id, line)
 
+   	# get the participant key
 	if c.mgiTypeKey2 == 2:
 	    if markerDict.has_key(obj2Id):
 		objKey2 = markerDict[obj2Id]
 	    else:
 		print 'Participant marker ID (%s) not found in line %s' % (obj2Id, line)
 		continue
+	# currently no allele participant, but coded for it anyway
 	elif c.mgiTypeKey2 == 11:
             if alleleDict.has_key(obj2Id):
                 objKey1 = alleleDict[obj2Id]
@@ -431,11 +478,14 @@ def createFiles( ):
 	else:
 	    print 'Participant mgiType not supported in line %s' % (obj2Id, line)
 
+	# get the relationship term key
 	if relationshipDict.has_key(relId):
 	    relKey = relationshipDict[relId]
 	else:
 	    print 'relationship id (%s) not found in line %s' % (relId, line)
 	    continue
+
+	# get the qualifier term key; empty qualifier gets default value
 	if qual == '':
 	    qual = defaultQual
 	if qualifierDict.has_key(qual):
@@ -443,16 +493,22 @@ def createFiles( ):
 	else:
 	    print 'qualifier (%s) not found in line %s' % (qual, line)
 	    continue
+
+	# get the evidence term key
 	if evidenceDict.has_key(evid):
 	    evidKey = evidenceDict[evid]
 	else:
 	    print 'evidence (%s) not found in line %s' % (evid, line)
 	    continue
+
+	# get the reference key
 	if jNumDict.has_key(jNum):
 	    refsKey = jNumDict[jNum]
 	else:
 	    print 'jNum (%s) not found in line %s' % (jNum, line)
 	    continue
+
+	# get the user key
 	if userDict.has_key(creator):
 	    userKey = userDict[creator]
 	else:
@@ -488,20 +544,26 @@ def createFiles( ):
 	seqNum = 0
 	for i in inputPropDict.keys():
 	    seqNum += 1
-	    propValue = remainingTokens[i-1]
+	    propValue = remainingColumns[i-1]
 	    propNameKey = inputPropDict[i]
-	    #  no prop specified for this relationship
+
+	    #  no prop specified for this relationship, continue
 	    if propValue == '':
 		continue
+	    # if property is 'score' convert the value to a float
 	    elif propNameKey == 11588491: 	# score
 		if string.find(propValue, '+')  == 0:
 		    propValue = propValue[1:]
 		propValue = float(propValue)	# convert score to float
+
 	    fpPropertyFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (nextPropertyKey, TAB, nextRelationshipKey, TAB, propNameKey, TAB, propValue, TAB, seqNum, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT ) )
 	    nextPropertyKey += 1
 	nextRelationshipKey += 1
 	nextNoteKey += 1
 	line = fpInFile.readline()
+    
+    return
+
 # end createFiles() -------------------------------------
 
 class Category:
@@ -520,6 +582,7 @@ class Category:
 	self.relationshipVocabKey = None
 	self.mgiTypeKey1 = None
 	self.mgiTypeKey2 = None
+
 # end class Category -----------------------------------------
 
 #####################

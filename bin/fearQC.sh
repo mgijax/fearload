@@ -5,15 +5,15 @@
 #
 #  Purpose:
 #
-#      This script is a wrapper around the process that does sanity
-#      checks for the FeaR load
+#      This script does sanity checks and is a wrapper around the process 
+#	that does QC checks for the Feature Relationship (FeaR) load
 #
 #  Usage:
 #
 #      fearQC.sh  filename  
 #
 #      where
-#          filename = path to the input file
+#          filename = full path to the input file
 #
 #  Env Vars:
 #
@@ -25,14 +25,15 @@
 #  Outputs:
 #
 #      - sanity report for the input file.
-#
+#      - QC report for the input file 	
 #      - Log file (${QC_LOGFILE})
 #
 #  Exit Codes:
 #
 #      0:  Successful completion
-#      1:  Fatal initialization error occurred
-#      3:  Fatal sanity errors
+#      1:  Sanity error (prompt to view sanity report)
+#      2:  Unexpected error occured running fearQC.py (prompt to view log)
+#      3:  QC errors (prompt to view qc report)
 #
 #  Assumes:  Nothing
 #
@@ -40,11 +41,16 @@
 #
 #      This script will perform following steps:
 #
-#      ) Validate the arguments to the script.
-#      ) Validate & source the configuration files to establish the environment.
-#      ) Verify that the input file exists.
-#      ) Initialize the log and report files.
-#      ) Call fearQC.sh to generate the sanity/QC report.
+#      1) Validate the arguments to the script
+#      2) Validate & source the configuration files to establish the environment
+#      3) Verify that the input file exists
+#      4) Update path to sanity/QC reports if this is not a 'live' run 
+#	     i.e. curators running the scripts 
+#      5) Initialize the log file
+#      6) creates table in tempdb for the input file
+#      7) Call fearQC.py to generate the QC report
+#      8) drops the tempdb table
+#
 #
 #  Notes:  None
 #
@@ -64,7 +70,7 @@ BINDIR=`dirname $0`
 CONFIG=`cd ${BINDIR}/..; pwd`/fearload.config
 USAGE='Usage: fearQC.sh  filename'
 
-# this is a sanity check only run, set LIVE_RUN accordingly
+# set LIVE_RUN  to sanity/QC check only as the default
 LIVE_RUN=0; export LIVE_RUN
 
 #
@@ -139,7 +145,7 @@ checkColumns ()
 }
 
 #
-# Initialize the report files to make sure the current user can write to them.
+# Initialize the report file(s) to make sure the current user can write to them.
 #
 RPT_LIST="${SANITY_RPT}"
 
@@ -154,6 +160,7 @@ done
 #
 TMP_FILE=/tmp/`basename $0`.$$
 trap "rm -f ${TMP_FILE}" 0 1 2 15
+
 #
 # FUNCTION: Check an input file to make sure it has a minimum number of lines.
 #
@@ -238,11 +245,12 @@ fi
 #
 # Create temp tables for the input data.
 #
+
 #
-# Append the current user ID to the name of the temp table that needs to be
+# Append the current user ID to the name of the temp table being
 # created. This allows multiple people to run the QC checks at the same time
-# without sharing the same table.
 #
+
 MGI_ID_TEMP_TABLE=${MGI_ID_TEMP_TABLE}_${USER}
 
 echo "" >> ${LOG}
