@@ -1106,6 +1106,12 @@ def qcInvalidMgiPrefix ():
 #
 def qcHeader(header):
     global propIndexDict, badPropList
+    
+    # integer index of valid property columns mapped to list where
+    # list[0] is column header, list[1] is True if at least one row for that
+    # property has data
+    # {14:['score', True], ...}
+    propIndexDict = {}
 
     # all comparisons in lower case
     headerTokens = string.split(header.lower(), TAB)
@@ -1118,7 +1124,7 @@ def qcHeader(header):
     # example property header: 'Property:score' or 'Property:data_source'
     colCt = 0
     for h in headerTokens:
-        #print 'header: %s' % h
+        print 'header: %s' % h
         colCt += 1
         if string.find(h, ':'):
             # remove leading/trailing WS e.g. ' Property : score ' -->
@@ -1142,6 +1148,7 @@ def qcHeader(header):
                         (lineCt, h.strip(), 'Invalid property value' ))
                     else:
                         propIndexDict[colCt-14] = [value, False]
+			print 'added index %s to propIndexDict with value [%s, False]' % (colCt-14, value)
 
     # if there are bad property column header(s) report them
     if len(badPropList):
@@ -1242,13 +1249,13 @@ def processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, \
 		#print 'prop: %s' % prop
 		# get the list of notes and save
 		note = r['note']
-		print 'note: %s' % note
+		#print 'note: %s' % note
 		if note != None:
 		    note = string.strip(note)
 		    if note not in noteList:
-			print 'appending note: "%s"' % note
+			#print 'appending note: "%s"' % note
 			noteList.append(string.strip(note))
-		print  noteList
+		#print  noteList
 
 	    # get the organizer and participant symbols
 	    if catKey in (1001, 1002):  # marker/marker relationships
@@ -1306,12 +1313,6 @@ def runQcChecks ():
     # col13 - notes
     # col14-N - properties columns
     
-    # integer index of valid property columns mapped to list where
-    # list[0] is column header, list[1] is True if at least one row for that
-    # property has data
-    # {14:['score', True], ...}
-    propIndexDict = {}
-
     # list of property columns with no data
     emptyPropColumnList = []
 
@@ -1320,6 +1321,7 @@ def runQcChecks ():
     
     #
     # Process the header for properties
+    # Note: there may be other headers in the input file
     #
 
     header = fpInput.readline()  
@@ -1350,6 +1352,7 @@ def runQcChecks ():
     line = fpInput.readline()
     lineCt += 1
     while line:
+	#print line
 	# get the first 13 lines - these are fixed columns
 	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, \
 	    qual, evid, jNum, creator, note) = map( \
@@ -1358,6 +1361,14 @@ def runQcChecks ():
         remainingTokens = map(string.lower, map(string.strip, string.split( \
 	    line, TAB))[13:])
 	#print remainingTokens
+
+	# if we find another header, QC it
+	if action == 'action':
+	    print 'found header line'
+	    qcHeader(line)
+	    line = fpInput.readline()
+	    lineCt += 1
+	    continue
 	if action != 'add' and action != 'delete':
 	    hasFatalErrors = 1
 	    actionList.append('%-12s  %-20s' % (lineCt, action))
@@ -1431,7 +1442,7 @@ def runQcChecks ():
 	# We only check properties for action=add i.e. not for deletes
 	if action == 'add':
 	    for i in propIndexDict.keys():
-		#print '%s: %s' % (i, propIndexDict[i][0])
+		print '%s: %s' % (i, propIndexDict[i][0])
 		propertyValue = remainingTokens[i]
 		propertyName = propIndexDict[i][0]
 		if propertyValue != '':
@@ -1646,6 +1657,18 @@ def loadTempTables ():
 	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, \
 	    evid, jNum, creator, note) = map(string.strip, string.split( \
 		line, TAB))[:13]
+	# we've found another header, skip it
+	if action.lower() == 'action':
+	    line = fp.readline()
+	    continue
+ 	cat = cat.lower()
+	obj1Id = obj1Id.lower()
+	obj2Id = obj2Id.lower()
+	#print 'line: %s' % line
+	#print 'action: %s' % action
+	#print 'cat: %s' % cat
+	#print 'obj1Id: %s' % obj1Id
+	#print 'obj2Id: %s' % obj2Id
 	if not categoryDict.has_key(cat):
             print 'FATAL ERROR Category: %s does not exist' % cat
             sys.exit(1)
@@ -1663,7 +1686,7 @@ def loadTempTables ():
 	#
 	# ID must have ':', suffix must exist, prefix must be 'MGI'
 	if obj1Id.find(':') == -1 or len(obj1Id.split(':')[1]) == 0 or \
-	        obj1Id.split(':')[0] != 'MGI':
+	        obj1Id.split(':')[0] != 'mgi':
 	    badIdDict[obj1Id] = 'Organizer'
 	    badIdOrg = 1
 	    #print 'badId Organizer: %s' % obj1Id
@@ -1683,7 +1706,7 @@ def loadTempTables ():
 	#
 	# ID must have ':', suffix must exist, prefix must be 'MGI'
 	if obj2Id.find(':') == -1 or len(obj2Id.split(':')[1]) == 0 or \
-		obj2Id.split(':')[0] != 'MGI':
+		obj2Id.split(':')[0] != 'mgi':
             badIdDict[obj2Id] = 'Participant'
             badIdPart = 1
 	    #print 'badId Participant %s' % obj2Id

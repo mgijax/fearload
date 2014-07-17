@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -x
 #
 #  publishFear
 ###########################################################################
@@ -11,18 +11,13 @@
 #
 ###########################################################################
 
-usage ()
-{
-    echo "Usage: publishFear input_file"
-    echo "       where"
-    echo "           input_file = name of the relationship input file"
-    exit 1
-}
-
 CURRENT_DIR=`pwd`
 
-LOADDIR=/usr/local/mgi/live/dataload/fearload
+#LOADDIR=/usr/local/mgi/live/dataload/fearload
+LOADDIR=/home/sc/work/dataload/fearload
 CONFIG=${LOADDIR}/fearload.config
+
+USAGE='Usage: publishQC.sh 1-n files OR 1 directory'
 
 #
 # The fearload product is not installed on all servers, so make sure
@@ -33,30 +28,6 @@ then
     echo "The fearload software does not exist on this server"
     exit 1
 fi
-
-#
-# Make sure an input file was passed as an argument to the script.
-#
-if [ $# -eq 1 ]
-then
-    if [ ! -r $1 ]
-    then
-        echo "Input file does not exist: $1"
-        exit 1
-    fi
-else
-    usage
-fi
-
-INPUT_FILE=$1
-
-#
-# Create a temporary file and make sure that it is removed when this script
-# terminates.
-#
-TMP_FILE=/tmp/`basename $0`.$$
-touch ${TMP_FILE}
-trap "rm -f ${TMP_FILE}" 0 1 2 15
 
 #
 # Make sure the configuration file exists and source it.
@@ -70,18 +41,113 @@ else
 fi
 
 #
+# Make sure at least one argument to the script.
+#
+
+if [ $# -lt 1 ]
+then
+    echo 'No arguments provided on command line'
+    echo $USAGE
+    exit 1
+
+fi
+
+numDir=0
+numFile=0
+files=''
+dir=''
+
+# iterate thru args
+args=$*
+for i in $args
+do
+    echo "arg: $i"
+    echo "numDir: $numDir"
+    # only one directory expected
+    if [ -d $i ]
+    then
+        echo "$i is directory"
+        if [ $numDir -gt 0 ]
+        then
+            echo 'Multiple directories on command line'
+            echo $USAGE
+            exit 1
+        else
+            numDir=`expr $numDir + 1`
+            dir=$i
+            echo "we have dir: $dir"
+        fi
+    elif [ -f $i ] # one or more files allowed
+    then
+        echo "$i is file"
+        numFile=`expr $numFile + 1`
+        files="$files $i"
+    else
+        echo "'$i' is not a directory or file"
+        echo  $USAGE
+        exit 1
+    fi
+done
+
+# DEBUG
+echo "numFile: $numFile"
+echo "files: $files"
+echo "numDir: $numDir"
+echo "dir: $dir"
+
+# check for improper arguments
+if [ $numDir -eq 1 -a $numFile -ne 0 ]
+then
+    echo 'Mix of directories and files on the command line'
+    echo $USAGE
+    exit 1
+fi
+
+# if we have a directory get the file listing
+echo "getting the files from $dir"
+if [ $numDir -eq 1 ]
+then
+    for f in `ls $dir`
+    do
+        fullPath="$dir/$f"
+        echo "fullPath: $fullPath"
+        if [ -d $fullPath ]
+        then
+            echo "subdirectories of $dir not allowed"
+            echo $USAGE
+            exit 1
+        fi
+        files="$files $fullPath"
+    done
+    echo "files from dir: $files"
+else
+    echo "files from CL: $files"
+fi
+
+#
 # Copy the input file to the input directory where it will be picked up
 # by the load.
 #
 cd ${CURRENT_DIR}
-echo "Source File:      ${INPUT_FILE}"
-echo "Destination File: ${INPUT_FILE_DEFAULT}"
-cp ${INPUT_FILE} ${INPUT_FILE_DEFAULT}
-if [ $? -eq 0 ]
-then
-    echo "Copy successful"
-    exit 0
-else
-    echo "Copy failed"
-    exit 1
-fi
+echo `pwd`
+echo $files
+
+for i in ${files}
+do
+    f=`basename $i`
+    echo $i
+    echo ${INPUTDIR}
+    prefix=$$
+    destFile=${INPUTDIR}/${f}.${prefix}
+    echo $destFile
+    cp $i ${destFile}
+    if [ $? -eq 0 ]
+    then
+        echo "Copy successful"
+    else
+        echo "Copy failed"
+        exit 1
+    fi
+
+done
+

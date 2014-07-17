@@ -68,26 +68,112 @@ CURRENTDIR=`pwd`
 BINDIR=`dirname $0`
 
 CONFIG=`cd ${BINDIR}/..; pwd`/fearload.config
-USAGE='Usage: fearQC.sh  filename'
+USAGE='Usage: fearQC.sh  ["live"] 1-n files OR 1 directory'
 
 # set LIVE_RUN  to sanity/QC check only as the default
 LIVE_RUN=0; export LIVE_RUN
-
+numDir=0
+numFile=0
 #
-# Make sure an input file was passed to the script. If the optional "live"
+# Make sure correct arguments are passed to the script. If the optional "live"
 # argument is given, that means that the output files are located in the
 # /data/loads/... directory, not in the current directory.
 #
-if [ $# -eq 1 ]
+argCt=$#
+echo "argCt: $argCt"
+if [ $argCt -lt 1 ]
 then
-    INPUT_FILE=$1
-elif [ $# -eq 2 -a "$2" = "live" ]
-then
-    INPUT_FILE=$1
-    LIVE_RUN=1
-else
-    echo ${USAGE}; exit 1
+    echo 'No arguments provided on command line'
+    echo $USAGE
+    exit 1
 fi
+
+files=''
+dir=''
+arg1=$1
+
+# is 'live' first arg?
+if [ "$arg1" = "live" ]
+then
+    LIVE_RUN=1; export LIVE_RUN
+    shift
+fi
+
+# iterate thru args - minus 'live' if it was first arg
+args=$*
+for i in $args
+do
+    echo "arg: $i"
+    echo "numDir: $numDir"
+    # only one directory expected
+    if [ -d $i ]
+    then
+	echo "$i is directory"
+	if [ $numDir -gt 0 ]
+	then
+	    echo 'Multiple directories on command line'
+	    echo $USAGE
+	    exit 1
+	else
+	    numDir=`expr $numDir + 1`
+	    dir=$i
+	    echo "we have dir: $dir"
+	fi
+    elif [ -f $i ] # one or more files allowed
+    then
+	echo "$i is file"
+	numFile=`expr $numFile + 1`
+        files="$files $i"
+    else
+        echo "'$i' is not a directory or file"
+        echo  $USAGE
+        exit 1
+    fi
+done
+
+# DEBUG
+echo "LIVE_RUN: $LIVE_RUN"
+echo "numFile: $numFile"
+echo "files: $files"
+echo "numDir: $numDir"
+echo "dir: $dir"
+
+# check for improper arguments
+if [ $numDir -eq 1 -a $numFile -ne 0 ]
+then
+    echo 'Mix of directories and files on the command line'
+    echo $USAGE
+    exit 1
+elif [ $numDir -eq 0 -a $numFile -eq 0 ]
+then
+    echo 'Live run and no files or directory on the command line'
+    echo $USAGE
+    exit 1
+fi
+
+# if we have a directory get the file listing
+echo "getting the files from $dir"
+if [ $numDir -eq 1 ]
+then
+    for f in `ls $dir`
+    do
+	fullPath="$dir/$f"
+	echo "fullPath: $fullPath"
+	if [ -d $fullPath ]
+	then
+	    echo "subdirectories of $dir not allowed"
+	    echo $USAGE
+	    exit 1
+	fi
+	files="$files $fullPath"
+    done
+    echo "files from dir: $files"
+else
+    echo "files from CL: $files"
+fi
+
+# file(s) to process 
+INPUT_FILES=$files
 
 #
 # Make sure the configuration file exists and source it.
@@ -106,12 +192,13 @@ fi
 #
 if [ ${LIVE_RUN} -eq 0 ]
 then
-	SANITY_RPT=${CURRENTDIR}/`basename ${SANITY_RPT}`
-	QC_RPT=${CURRENTDIR}/`basename ${QC_RPT}`
+	SANITY_RPT=${CURRENTDIR}/`basename ${SANITY_RPT}`.${USER}
+	QC_RPT=${CURRENTDIR}/`basename ${QC_RPT}`.${USER}
 	WARNING_RPT=${CURRENTDIR}/`basename ${WARNING_RPT}`
 	DELETE_RPT=${CURRENTDIR}/`basename ${DELETE_RPT}`
 	DELETE_SQL=${CURRENTDIR}/`basename ${DELETE_SQL}`
 	QC_LOGFILE=${CURRENTDIR}/`basename ${QC_LOGFILE}`
+	INPUT_FILE_QC_INT=${CURRENTDIR}/`basename ${INPUT_FILE_QC_INT}`
 
 fi
 
@@ -135,6 +222,26 @@ checkColumns ()
     echo "\nLines With Missing Columns or Data" >> ${REPORT}
     echo "-----------------------------------" >> ${REPORT}
     ${FEARLOAD}/bin/checkColumns.py ${FILE} ${NUM_COLUMNS} > ${TMP_FILE}
+    cat ${TMP_FILE} >> ${REPORT}
+    if [ `cat ${TMP_FILE} | wc -l` -eq 0 ]
+    then
+        return 0
+    else
+        return 1
+    fi
+}
+
+#
+# FUNCTION: Check for duplicate lines in the input file
+#           write the line numbers and lines to the sanity report.
+#
+checkDupLines ()
+{
+    FILE=$1         # The input file to check
+    REPORT=$2       # The sanity report to write to
+    echo "\nDuplicate Lines" >> ${REPORT}
+    echo "-----------------------------------" >> ${REPORT}
+    ${FEARLOAD}/bin/checkDupLines.py ${FILE} > ${TMP_FILE}
     cat ${TMP_FILE} >> ${REPORT}
     if [ `cat ${TMP_FILE} | wc -l` -eq 0 ]
     then
@@ -179,65 +286,47 @@ checkLineCount ()
     fi
 }
 
-#
-# FUNCTION: Check for duplicate lines in an input file and write the lines
-#           to the sanity report.
-#
-checkDupLines ()
-{
-    FILE=$1    # The input file to check
-    REPORT=$2  # The sanity report to write to
-
-    echo "\n\nDuplicate Lines" >> ${REPORT}
-    echo "---------------" >> ${REPORT}
-    sort ${FILE} | uniq -d > ${TMP_FILE}
-    cat ${TMP_FILE} >> ${REPORT}
-    if [ `cat ${TMP_FILE} | wc -l` -eq 0 ]
-    then
-        return 0
-    else
-        return 1
-    fi
-}
-
 echo "" >> ${LOG}
 date >> ${LOG}
 echo "Run sanity checks on the input file" >> ${LOG}
 SANITY_ERROR=0
 
-#
-# Make sure the input files exist (regular file or symbolic link).
-#
-if [ "`ls -L ${INPUT_FILE} 2>/dev/null`" = "" ]
+# catenate all input files to INPUT_FILE_QC_INT
+if [ -f ${INPUT_FILE_QC_INT} ]
 then
-    echo "\nInput file does not exist: ${INPUT_FILE}\n\n" | tee -a ${LOG}
-    exit 1
+    rm  ${INPUT_FILE_QC_INT}
 fi
 
-checkLineCount ${INPUT_FILE} ${SANITY_RPT} ${MIN_LINES}
+cat ${INPUT_FILES} >  ${INPUT_FILE_QC_INT}
+
+# check the line count
+checkLineCount ${INPUT_FILE_QC_INT} ${SANITY_RPT} ${MIN_LINES}
 if [ $? -ne 0 ]
 then
-    echo "\nInput file has no data: ${INPUT_FILE}\n\n" | tee -a ${LOG}
+    echo "\nInput file has no data: ${INPUT_FILE_QC_INT}\n\n" | tee -a ${LOG}
     exit 1
 fi
 
-checkColumns ${INPUT_FILE} ${SANITY_RPT} ${NUM_COLUMNS}
+# check the number of columns
+checkColumns ${INPUT_FILE_QC_INT} ${SANITY_RPT} ${NUM_COLUMNS}
 if [ $? -ne 0 ]
 then
     SANITY_ERROR=1
 fi
 
-checkDupLines ${INPUT_FILE} ${SANITY_RPT}
+# check for duplicate lines
+checkDupLines ${INPUT_FILE_QC_INT} ${SANITY_RPT}
 if [ $? -ne 0 ]
 then
     SANITY_ERROR=1
 fi
 
+# report if we find sanity errors
 if [ ${SANITY_ERROR} -ne 0 ]
 then
     if [ ${LIVE_RUN} -eq 0 ]
     then
-	echo "Sanity errors detected. See ${SANITY_RPT}" | tee -a ${LOG}
+	echo "Sanity errors detected in input file ${INPUT_FILE_QC_INT}. See ${SANITY_RPT}" | tee -a ${LOG}
     fi
     exit 1
 fi
@@ -283,18 +372,18 @@ date >> ${LOG}
 echo "" >> ${LOG}
 date >> ${LOG}
 echo "Generate the QC reports" >> ${LOG}
-{ ${FEARLOAD}/bin/fearQC.py ${INPUT_FILE} 2>&1; echo $? > ${TMP_FILE}; } >> ${LOG}
+{ ${FEARLOAD}/bin/fearQC.py ${INPUT_FILE_QC_INT} 2>&1; echo $? > ${TMP_FILE}; } >> ${LOG}
 
 if [ `cat ${TMP_FILE}` -eq 1 ]
 then
-    echo "An error occurred while generating the QC reports"
+    echo "An error occurred while generating the QC reports on  ${INPUT_FILE_QC_INT}"
     echo "See log file (${LOG})"
     RC=2
 elif [ `cat ${TMP_FILE}` -eq 2 ]
 then
     if [ ${LIVE_RUN} -eq 0 ]
     then
-	echo "QC errors detected. See ${QC_RPT} " | tee -a ${LOG}
+	echo "QC errors detected in ${INPUT_FILE_QC_INT}. See ${QC_RPT} " | tee -a ${LOG}
     fi
     RC=3
 else

@@ -35,15 +35,15 @@ fi
 #
 # Make sure an input file was passed as an argument to the script.
 #
-if [ $# -eq 1 ]
-then
-    if [ ! -r $1 ]
-    then
-        echo "Input file does not exist: $1"; exit 1
-    fi
-else
-    usage
-fi
+#if [ $# -eq 1 ]
+#then
+#    if [ ! -r $1 ]
+#    then
+#        echo "Input file does not exist: $1"; exit 1
+#    fi
+#else
+#    usage
+#fi
 
 #
 # Invoke the QC report wrapper script with the arguments that
