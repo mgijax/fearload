@@ -93,20 +93,20 @@ cleanDir ${OUTPUTDIR}
 # the last time the load was run for this input file. If this file exists
 # and is more recent than the input file, the load does not need to be run.
 #
-#LASTRUN_FILE=${INPUTDIR}/lastrun
-#if [ -f ${LASTRUN_FILE} ]
-#then
-#    if /usr/local/bin/test ${LASTRUN_FILE} -nt ${INPUT_FILE_DEFAULT}
-#    then
-#
-#        echo "Input file has not been updated - skipping load" | tee -a ${LOG_PROC}
-#        # set STAT for shutdown
-#        STAT=0
-#        echo 'shutting down'
-#        shutDown
-#        exit 0
-#    fi
-#fi
+LASTRUN_FILE=${INPUTDIR}/lastrun
+if [ -f ${LASTRUN_FILE} ]
+then
+    if /usr/local/bin/test ${LASTRUN_FILE} -nt ${INPUT_FILE_DEFAULT}
+    then
+
+        echo "Input file has not been updated - skipping load" | tee -a ${LOG_PROC}
+        # set STAT for shutdown
+        STAT=0
+        echo 'shutting down'
+        shutDown
+        exit 0
+    fi
+fi
 
 echo "" >> ${LOG_DIAG}
 date >> ${LOG_DIAG}
@@ -242,10 +242,10 @@ cp -p ${INPUT_FILE_DEFAULT} ${ARCHIVEDIR}/${ARC_FILE}
 #
 # Touch the "lastrun" file to note when the load was run.
 #
-#if [ ${STAT} = 0 ]
-#then
-#    touch ${LASTRUN_FILE}
-#fi
+if [ ${STAT} = 0 ]
+then
+    touch ${LASTRUN_FILE}
+fi
 
 
 # run postload cleanup and email logs
