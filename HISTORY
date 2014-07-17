@@ -1,3 +1,9 @@
+TAG: fearload-5-1-9-2
+DATE: 07/03/2014
+STAFF: sc
+CHANGES: production release tag
+1) fearload.sh - uncomment LASTRUN_FILE
+
 TAG: fearload-5-1-9-1
 DATE: 07/03/2014
 STAFF: sc
