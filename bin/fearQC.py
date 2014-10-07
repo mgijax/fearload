@@ -198,7 +198,7 @@ def init ():
 
     db.set_sqlUser(user)
     db.set_sqlPasswordFromFile(passwordFile)
-    
+    db.useOneConnection(1)
     #
     # create lookups
     #
@@ -621,9 +621,13 @@ def qcOrgAllelePartMarker():
     results4 = db.sql(cmds, 'auto')
     
     # Organizer and Participant ID do not match
+    db.sql('''select * 
+	    	into #nonExpComp
+		from tempdb..%s tmp
+		where category != 'expresses_component' ''' % idTempTable, None)
     cmds = '''select distinct tmp.mgiID1 as org, tmp.mgiID2 as part, 
 		    mo.chromosome as oChr, mp.chromosome as pChr
-		from tempdb..%s tmp,
+		from #nonExpComp tmp,
 		ALL_Allele a, MRK_Marker mo, MRK_Marker mp, ACC_Accession ao, 
 		    ACC_Accession ap
 		where tmp.mgiID1TypeKey = 11
@@ -641,7 +645,7 @@ def qcOrgAllelePartMarker():
 		and ap._MGIType_key =  2
                 and ap.preferred = 1
 		and ap._Object_key = mp._Marker_key
-		and mo.chromosome != mp.chromosome''' % idTempTable
+		and mo.chromosome != mp.chromosome'''
     print 'running sql for results5 %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
 	time.localtime(time.time()))
     sys.stdout.flush()
@@ -1649,7 +1653,7 @@ def loadTempTables ():
 	if not categoryDict.has_key(cat):
             print 'FATAL ERROR Category: %s does not exist' % cat
             sys.exit(1)
-
+        #print 'category: %s' % cat
 	# we are loading just the numeric part of the MGI ID for efficiency
 	# if and Org ID or a Part ID is improperly formatted we load it as
  	# 0 so we can QC the good ID
@@ -1708,8 +1712,12 @@ def loadTempTables ():
 
 	    #print 'obj1Id: %s obj1IdInt: %s' % (obj1Id, obj1IdInt)
 	    #print 'obj2Id: %s obj2IdInt: %s' % (obj2Id, obj2IdInt)
-	    fpIDBCP.write('%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, obj1IdTypeKey, \
-		TAB, obj2IdInt, TAB, obj2IdTypeKey, CRT))
+	    print '%s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, \
+                obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, \
+                cat, CRT)
+	    fpIDBCP.write('%s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, \
+		obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, \
+		cat, CRT))
         line = fp.readline()
 
     #
@@ -1765,6 +1773,7 @@ print 'closeFiles(): %s' % time.strftime("%H.%M.%S.%m.%d.%y",
 sys.stdout.flush()
 closeFiles()
 
+db.useOneConnection(0)
 print 'done: %s' % time.strftime("%H.%M.%S.%m.%d.%y", 
     time.localtime(time.time()))
 
