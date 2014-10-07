@@ -266,6 +266,7 @@ create table ${MGI_ID_TEMP_TABLE} (
     mgiID1TypeKey int not null,
     mgiID2 int not null,
     mgiID2TypeKey int not null,
+    category varchar(50) not null,
 )
 go
 
