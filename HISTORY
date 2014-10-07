@@ -1,3 +1,10 @@
+TAG: fearload-tr11676-1
+DATE: 10/07/2014
+STAFF: sc
+CHANGES:
+1) fearQC.sh - added category column to temdb table
+2) fearQC.sh - exclude expresses_component from chr mismatch QC
+
 TAG: fearload-tr11676-BP
 DATE: 07/03/2014
 STAFF: sc
