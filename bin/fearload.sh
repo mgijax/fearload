@@ -242,10 +242,10 @@ cp -p ${INPUT_FILE_DEFAULT} ${ARCHIVEDIR}/${ARC_FILE}
 #
 # Touch the "lastrun" file to note when the load was run.
 #
-if [ ${STAT} = 0 ]
-then
-    touch ${LASTRUN_FILE}
-fi
+#if [ ${STAT} = 0 ]
+#then
+#    touch ${LASTRUN_FILE}
+#fi
 
 
 # run postload cleanup and email logs

@@ -1,3 +1,13 @@
+TAG: fearload-tr11676-2
+DATE: 10/28/2014
+STAFF: sc
+CHANGES:
+1) fearload.sh - commented out touch of LASTRUN file - uncomment
+   before production release!!!!
+2) fearQC.sh - don't rm warning.rpt - add message at top of command line 
+    warnings that report is available
+3) fearQC.py - US135 expresses component QC (fatal and warn)
+
 TAG: fearload-tr11676-1
 DATE: 10/07/2014
 STAFF: sc

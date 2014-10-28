@@ -306,10 +306,12 @@ else
     RC=0
 fi
 
-if [ -f ${WARNING_RPT} -a ${LIVE_RUN} -eq 0 ]
+if [ -s ${WARNING_RPT} -a ${LIVE_RUN} -eq 0 ]
 then
+    echo "" 
+    echo "Warnings listed below. Also see ${WARNING_RPT}"
     cat ${WARNING_RPT}
-    rm ${WARNING_RPT}
+    #rm ${WARNING_RPT}
 fi
 
 #
