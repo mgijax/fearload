@@ -1849,9 +1849,9 @@ def loadTempTables ():
 
 	    #print 'obj1Id: %s obj1IdInt: %s' % (obj1Id, obj1IdInt)
 	    #print 'obj2Id: %s obj2IdInt: %s' % (obj2Id, obj2IdInt)
-	    print '%s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, \
-                obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, \
-                cat, CRT)
+	    #print '%s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, \
+            #    obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, \
+            #    cat, CRT)
 	    fpIDBCP.write('%s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, \
 		obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, \
 		cat, CRT))
