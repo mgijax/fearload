@@ -295,6 +295,7 @@ elif [ `cat ${TMP_FILE}` -eq 2 ]
 then
     if [ ${LIVE_RUN} -eq 0 ]
     then
+	echo ""
 	echo "QC errors detected. See ${QC_RPT} " | tee -a ${LOG}
     fi
     RC=3
