@@ -1130,6 +1130,10 @@ def qcHeader(header):
 
     # all comparisons in lower case
     headerTokens = string.split(header.lower(), TAB)
+    if headerTokens[0] != 'action':
+	fpQcRpt.write('!!!!No Header Line in File!!!!')
+	fpQcRpt.close()
+        sys.exit(2)
 
     # total number of columns in the file
     numColumns = len(headerTokens)
@@ -1480,7 +1484,7 @@ def runQcChecks ():
 		# 2) the value is not in the database
 		# 3) the gene symbol associated with the value in the file not 
 		#    same as the gene symbol in the database (case sensitive)
-		print 'propertyName: "%s" relId: "%s"' % (propertyName, relId)
+		#print 'propertyName: "%s" relId: "%s"' % (propertyName, relId)
 		# lower case test
 		if cat == 'expresses_component' and relId == 'rv:0000211':
 		    if propertyName == 'non-mouse_organism' and \
@@ -1528,7 +1532,7 @@ def runQcChecks ():
                         toReport = '%-12s   %-68s ' % (lineCt, reason)
                         #if toReport not in badECPropValueList:
                         badECPropValueList.append(toReport)
-			print reason
+			#print reason
 		    elif  propertyName == 'non-mouse_gene_symbol' and \
                         propertyValue != '':
                         hasFatalErrors = 1
@@ -1537,7 +1541,7 @@ def runQcChecks ():
                         toReport = '%-12s   %-68s ' % (lineCt, reason)
                         #if toReport not in badECPropValueList:
                         badECPropValueList.append(toReport)
-			print reason
+			#print reason
 		    elif propertyName == 'non-mouse_ncbi_gene_id' and \
 			propertyValue != '':
                         hasFatalErrors = 1
@@ -1546,7 +1550,7 @@ def runQcChecks ():
                         toReport = '%-12s   %-68s ' % (lineCt, reason)
                         #if toReport not in badECPropValueList:
                         badECPropValueList.append(toReport)
-			print reason
+			#print reason
 	    # After we've checked all properties, if 
 	    # the category is expresses_component and
 	    # the relID is rv:0000211 and
@@ -1566,7 +1570,7 @@ def runQcChecks ():
 		    if geneSymbol != dbSymbol:
 			reason = 'Non-mouse_NCBI_Gene_ID: %s associated symbol: %s not equal to the non-mouse gene symbol in file: %s' % \
 			    (egID, dbSymbol, geneSymbol)
-			print reason
+			#print reason
 			fpWarnRpt.write('%-5s    %-75s%s' % (lineCt, reason, CRT))
 
 
