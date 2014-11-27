@@ -1,3 +1,10 @@
+TAG: fearload-tr11676-4
+DATE: 11/27/2014
+STAFF: sc
+CHANGES: TR11674 - HDP-2 project US186
+    QC Check for Expresses Component Dupes
+1) fearQC.py - added queries, structures and checking for dups
+
 TAG: fearload-tr11676-3
 DATE: 10/30/2014
 STAFF: sc
