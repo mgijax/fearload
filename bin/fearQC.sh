@@ -266,6 +266,7 @@ create table ${MGI_ID_TEMP_TABLE} (
     mgiID1TypeKey int not null,
     mgiID2 int not null,
     mgiID2TypeKey int not null,
+    category varchar(50) not null,
 )
 go
 
@@ -294,6 +295,7 @@ elif [ `cat ${TMP_FILE}` -eq 2 ]
 then
     if [ ${LIVE_RUN} -eq 0 ]
     then
+	echo ""
 	echo "QC errors detected. See ${QC_RPT} " | tee -a ${LOG}
     fi
     RC=3
@@ -305,10 +307,13 @@ else
     RC=0
 fi
 
-if [ -f ${WARNING_RPT} -a ${LIVE_RUN} -eq 0 ]
+if [ -s ${WARNING_RPT} -a ${LIVE_RUN} -eq 0 ]
 then
+    echo "" 
+    echo "Warnings listed below. Also see ${WARNING_RPT}"
     cat ${WARNING_RPT}
-    rm ${WARNING_RPT}
+    # no longer removing warning report because expr comp can have 
+    # many warnings
 fi
 
 #
