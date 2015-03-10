@@ -132,7 +132,8 @@ checkColumns ()
     REPORT=$2       # The sanity report to write to
     NUM_COLUMNS=$3  # The number of columns expected in each input record
     NUM_COLUMNS=$3  # The number of columns expected in each input record
-    echo "\nLines With Missing Columns or Data" >> ${REPORT}
+    echo "" >> ${REPORT}
+    echo "Lines With Missing Columns or Data" >> ${REPORT}
     echo "-----------------------------------" >> ${REPORT}
     ${FEARLOAD}/bin/checkColumns.py ${FILE} ${NUM_COLUMNS} > ${TMP_FILE}
     cat ${TMP_FILE} >> ${REPORT}
@@ -188,7 +189,8 @@ checkDupLines ()
     FILE=$1    # The input file to check
     REPORT=$2  # The sanity report to write to
 
-    echo "\n\nDuplicate Lines" >> ${REPORT}
+    echo "" >> ${REPORT}
+    echo "Duplicate Lines" >> ${REPORT}
     echo "---------------" >> ${REPORT}
     sort ${FILE} | uniq -d > ${TMP_FILE}
     cat ${TMP_FILE} >> ${REPORT}
@@ -210,14 +212,18 @@ SANITY_ERROR=0
 #
 if [ "`ls -L ${INPUT_FILE} 2>/dev/null`" = "" ]
 then
-    echo "\nInput file does not exist: ${INPUT_FILE}\n\n" | tee -a ${LOG}
+    echo "" | tee -a ${LOG}
+    echo "Input file does not exist: ${INPUT_FILE}" | tee -a ${LOG}
+    echo "" | tee -a ${LOG}
     exit 1
 fi
 
 checkLineCount ${INPUT_FILE} ${SANITY_RPT} ${MIN_LINES}
 if [ $? -ne 0 ]
 then
-    echo "\nInput file has no data: ${INPUT_FILE}\n\n" | tee -a ${LOG}
+    echo "" | tee -a ${LOG}
+    echo "Input file has no data: ${INPUT_FILE}" | tee -a ${LOG}
+    echo "" | tee -a ${LOG}
     exit 1
 fi
 
