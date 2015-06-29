@@ -24,7 +24,7 @@
 #      - Warning report (${WARNING_RPT})
 #      - Delete report (${DELETE_RPT})
 #      - Delete SQL file (${DELETE_SQL})
-#      - tempdb BCP file (${MGI_ID_BCP})
+#      - temp table BCP file (${MGI_ID_BCP})
 #
 #  Exit Codes:
 #
@@ -171,6 +171,11 @@ exprCompList = []
 # template for expressed component relationships in the database
 exprCompTemplate = '%s|%s|%s|%s|%s|%s|%s|%s'
 
+# for bcp
+bcpin = '%s/bin/bcpin.csh' % os.environ['PG_DBUTILS']
+server = os.environ['MGD_DBSERVER']
+database = os.environ['MGD_DBNAME']
+
 #
 # Purpose: Validate the arguments to the script.
 # Returns: Nothing
@@ -186,7 +191,7 @@ def checkArgs ():
         sys.exit(1)
 
     inputFile = sys.argv[1]
-
+    #print 'inputFile: %s' % inputFile
     return
 
 # end checkArgs() -------------------------------
@@ -300,27 +305,29 @@ def init ():
     #print 'validPropDict: %s' % validPropDict
 
     # Expresses component lookup
-    db.sql('''select r.*, a.accid as relID, v1.term as qual, 
-	    v2.abbreviation as evid, v3.term as propName, p.value as propValue
-	into #EC
-	from MGI_Relationship r, ACC_Accession a, VOC_Term v1, VOC_Term v2, VOC_Term v3, 
-	    MGI_Relationship_Property p
-	where r._Category_key = 1004
-	and r._RelationshipTerm_key = a._Object_key
-	and a._MGIType_key = 13
-	and a._LogicalDB_key = 171
-	and preferred = 1
-	and r._Qualifier_key = v1._Term_key
-	and r._Evidence_key = v2._Term_key
-	and r._Relationship_key *= p._Relationship_key
-	and p._PropertyName_key *= v3._Term_key''', None)
+    # this returns 3836 on sybase and on postgres
+    db.sql('''select r.*, a.accid as relID, v1.term as qual,
+            v2.abbreviation as evid, v3.term as propName, p.value as propValue
+        into temp EC
+        from ACC_Accession a, VOC_Term v1, VOC_Term v2, MGI_Relationship r
+        LEFT OUTER JOIN MGI_Relationship_Property p on (
+            r._Relationship_key = p._Relationship_key)
+        LEFT OUTER JOIN  VOC_Term v3 on (
+            p._PropertyName_key = v3._Term_key)
+        where r._Qualifier_key = v1._Term_key
+        and r._Evidence_key = v2._Term_key
+        and r._Category_key = 1004
+        and r._RelationshipTerm_key = a._Object_key
+        and a._MGIType_key = 13
+        and a._LogicalDB_key = 171
+	and preferred = 1''', None)
     
-    db.sql('create index idx1 on #EC(_Object_key_1)', None)
-    db.sql('create index idx2 on #EC(_Object_key_2)', None)
+    db.sql('create index idxObjKey1 on EC(_Object_key_1)', None)
+    db.sql('create index idxObjKey2 on EC(_Object_key_2)', None)
 
     results = db.sql('''select distinct a1.accID as alleleID, a2.accID as markerID, 
 	    e.relID, e.qual, e.evid, e.propName, e.propValue, e._Relationship_key
-	from #EC e, ACC_Accession a1, ACC_Accession a2
+	from EC e, ACC_Accession a1, ACC_Accession a2
 	where e._Object_key_1 = a1._Object_key
 	and a1._MGIType_key = 11
 	and a1.prefixPart = 'MGI:'
@@ -332,7 +339,7 @@ def init ():
 	and a2._LogicalDB_key = 1
 	and a2.preferred = 1
 	order by _Relationship_key''', 'auto')
-    print 'Num results: %s' % len(results)
+    #print 'Num results: %s' % len(results)
     resDict = {}
     # organize by relationship; multi properties per relationship
     for r in results:
@@ -371,19 +378,19 @@ def init ():
     loadTempTables()
     print 'Done loading temp tables'
 
-    # load allele and marker lookups from tempdb
-    loadTempdbLookups()
+    # load allele and marker lookups from temp table
+    loadTempTableLookups()
 
     return
 
 # end init() -------------------------------
 
-# Purpose: load lookups from tempdb for delete processing
+# Purpose: load lookups from temp table for delete processing
 # Returns: Nothing
-# Assumes: tempdb loaded with input file data
+# Assumes: temp table loaded with input file data
 # Effects: queries a database, modifies global variables
 #
-def loadTempdbLookups(): 
+def loadTempTableLookups(): 
     global alleleDict, markerDict
 
     # load org=allele, part= marker from temp table
@@ -391,7 +398,7 @@ def loadTempdbLookups():
 		a1._Object_key as _Allele_key, aa.symbol as alleleSymbol, 
 		tmp.mgiID2, a2._Object_key as _Marker_key, 
 		m.symbol as markerSymbol
-	    from tempdb..%s tmp, ACC_Accession a1, ACC_Accession a2,
+	    from %s tmp, ACC_Accession a1, ACC_Accession a2,
 		ALL_Allele aa, MRK_Marker m
 	    where tmp.mgiID1TypeKey = 11
 	    and tmp.mgiID2TypeKey = 2
@@ -416,13 +423,13 @@ def loadTempdbLookups():
 	    alleleDict[alleleID] = [r['_Allele_key'], r['alleleSymbol']]
 	if not markerDict.has_key(markerID):
 	    markerDict[markerID] = [r['_Marker_key'], r['markerSymbol']]
-
+    #print alleleDict
     # load org=marker, part=marker from temp table
     results = db.sql('''select distinct tmp.mgiID1, 
 		a1._Object_key as _Marker_key_1, m1.symbol as symbol1, 
 		tmp.mgiID2, a2._Object_key as _Marker_key_2, 
 		m2.symbol as symbol2
-	    from tempdb..%s tmp, ACC_Accession a1, ACC_Accession a2,
+	    from %s tmp, ACC_Accession a1, ACC_Accession a2,
 		MRK_Marker m1, MRK_Marker m2
 	    where tmp.mgiID1TypeKey = 2
 	    and tmp.mgiID2TypeKey = 2
@@ -449,7 +456,7 @@ def loadTempdbLookups():
 
     return
 
-# end loadTempdbLookups() -------------------------------
+# end loadTempTableLookups() -------------------------------
 
 #
 # Purpose: Open input and output files.
@@ -485,7 +492,7 @@ def openFiles ():
     try:
         fpIDBCP = open(idBcpFile, 'w')
     except:
-        print 'Cannot open tempdb bcp file: %s' % idBcpFile
+        print 'Cannot open temp table bcp file: %s' % idBcpFile
         sys.exit(1)
 
     #
@@ -534,8 +541,10 @@ def qcOrgAllelePartMarker():
     # and Participant is marker and:
 
     # Organizer does not exist in the database
-    cmds = '''select tmp.mgiID1, null "name", null "status"
-                from tempdb..%s tmp
+    #cmds = '''select tmp.mgiID1, null name, null "status"
+    #cmds = '''select tmp.mgiID1, name=null, "status"=null
+    cmds = '''select tmp.mgiID1, null as name, null as status
+                from %s tmp
                 where tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
 		and tmp.mgiID1 != 0
@@ -550,8 +559,8 @@ def qcOrgAllelePartMarker():
     results1a = db.sql(cmds, 'auto')
 
     # Organizer exists for a non-allele object.
-    cmds = '''select tmp.mgiID1, t.name, null "status"
-                from tempdb..%s tmp, ACC_Accession a1, ACC_MGIType t
+    cmds = '''select tmp.mgiID1, t.name, null as status
+                from %s tmp, ACC_Accession a1, ACC_MGIType t
                 where a1.numericPart = tmp.mgiID1
 		and a1.prefixPart = 'MGI:'
                 and tmp.mgiID1TypeKey = 11
@@ -574,7 +583,7 @@ def qcOrgAllelePartMarker():
 
     # Organizer has invalid status
     cmds = '''select tmp.mgiID1, t.name, vt.term as status
-                from tempdb..%s tmp,ACC_Accession a, ACC_MGIType t,
+                from %s tmp,ACC_Accession a, ACC_MGIType t,
                         ALL_Allele aa, VOC_Term vt
                 where a.numericPart = tmp.mgiID1
 		and a.prefixPart = 'MGI:'
@@ -596,8 +605,8 @@ def qcOrgAllelePartMarker():
     results1c = db.sql(cmds, 'auto')
 
     # Participant MGI ID does not exist in the database
-    cmds = '''select tmp.mgiID2, null "name", null "status"
-                from tempdb..%s tmp
+    cmds = '''select tmp.mgiID2, null as name, null as status
+                from %s tmp
                 where tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
 		and tmp.mgiID2 > 0
@@ -612,8 +621,8 @@ def qcOrgAllelePartMarker():
     results2a = db.sql(cmds, 'auto')
 
     # Participant MGI ID exists in the database for non-marker object
-    cmds = '''select tmp.mgiID2, t.name, null "status"
-                from tempdb..%s tmp, ACC_Accession a1, ACC_MGIType t
+    cmds = '''select tmp.mgiID2, t.name, null as status
+                from %s tmp, ACC_Accession a1, ACC_MGIType t
                 where a1.numericPart = tmp.mgiID2
 		and a1.prefixPart = 'MGI:'
                 and tmp.mgiID1TypeKey = 11
@@ -636,7 +645,7 @@ def qcOrgAllelePartMarker():
 
     # Participant has invalid status         
     cmds = '''select tmp.mgiID2, t.name, ms.status
-                from tempdb..%s tmp,ACC_Accession a, ACC_MGIType t,
+                from %s tmp,ACC_Accession a, ACC_MGIType t,
                         MRK_Marker m, MRK_Status ms
                 where a.numericPart = tmp.mgiID2
 		and a.prefixPart = 'MGI:'
@@ -659,7 +668,7 @@ def qcOrgAllelePartMarker():
     cmds = '''select tmp.mgiID1,
                        aa.symbol,
                        a2.accID
-                from tempdb..%s tmp,
+                from %s tmp,
                      ACC_Accession a1,
                      ACC_Accession a2,
                      ALL_Allele aa
@@ -688,7 +697,7 @@ def qcOrgAllelePartMarker():
     cmds = '''select tmp.mgiID2,
                        m.symbol,
                        a2.accID
-                from tempdb..%s tmp,
+                from %s tmp,
                      ACC_Accession a1,
                      ACC_Accession a2,
                      MRK_Marker m
@@ -714,12 +723,15 @@ def qcOrgAllelePartMarker():
     
     # Organizer and Participant ID do not match
     db.sql('''select * 
-	    	into #nonExpComp
-		from tempdb..%s tmp
+	    	into temp nonExpComp
+		from %s tmp
 		where category != 'expresses_component' ''' % idTempTable, None)
+    db.sql('''create index idxMgiID1 on nonExpComp (mgiID1)''', None)
+    db.sql('''create index idxMgiID2 on nonExpComp (mgiID2)''', None)
+
     cmds = '''select distinct tmp.mgiID1 as org, tmp.mgiID2 as part, 
 		    mo.chromosome as oChr, mp.chromosome as pChr
-		from #nonExpComp tmp,
+		from nonExpComp tmp,
 		ALL_Allele a, MRK_Marker mo, MRK_Marker mp, ACC_Accession ao, 
 		    ACC_Accession ap
 		where tmp.mgiID1TypeKey = 11
@@ -920,18 +932,18 @@ def qcOrgMarkerPartMarker():
     # 2) Exist for a non-marker object.
     # 3) Exist for a marker, but the status is not "official" or "interim".
     # 4) Are secondary
-    cmds = '''select tmp.mgiID1, null "name", null "status"
-		from tempdb..%s tmp
+    cmds = '''(select tmp.mgiID1, null as name, null as status
+		from %s tmp
 		where tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
 		and tmp.mgiID1 > 0
 		and not exists(select 1
 		from ACC_Accession a
 		where a.numericPart = tmp.mgiID1
-		and a.prefixPart = 'MGI:')
+		and a.prefixPart = 'MGI:'))
 		union
-	  	select tmp.mgiID1, t.name, null "status"
-		from tempdb..%s tmp, ACC_Accession a1, ACC_MGIType t
+	  	(select tmp.mgiID1, t.name, null as status
+		from %s tmp, ACC_Accession a1, ACC_MGIType t
 		where a1.numericPart = tmp.mgiID1 
 		and a1.prefixPart = 'MGI:'
 		and tmp.mgiID1TypeKey = 2
@@ -945,10 +957,10 @@ def qcOrgMarkerPartMarker():
 			where a2.numericPart = tmp.mgiID1
 			and a2.prefixPart = 'MGI:'
 			and a2._LogicalDB_key = 1
-			and a2._MGIType_key = 2)
+			and a2._MGIType_key = 2))
 		union
-		select tmp.mgiID1, t.name, ms.status
-		from tempdb..%s tmp,ACC_Accession a, ACC_MGIType t,
+		(select tmp.mgiID1, t.name, ms.status
+		from %s tmp, ACC_Accession a, ACC_MGIType t,
 			MRK_Marker m, MRK_Status ms
 		where a.numericPart = tmp.mgiID1 
 		and a.prefixPart = 'MGI:'
@@ -960,26 +972,26 @@ def qcOrgMarkerPartMarker():
 		and a._MGIType_key = t._MGIType_key
                 and a._Object_key = m._Marker_key
                 and m._Marker_Status_key not in (1,3)
-                and m._Marker_Status_key = ms._Marker_Status_key 
-                order by tmp.mgiID1''' % (idTempTable, idTempTable, idTempTable)
+                and m._Marker_Status_key = ms._Marker_Status_key
+                order by tmp.mgiID1)''' % (idTempTable, idTempTable, idTempTable)
     #print cmds
     print 'running sql for results1 %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
 	time.localtime(time.time()))
     sys.stdout.flush()
     results1 = db.sql(cmds, 'auto')
 
-    cmds = '''select tmp.mgiID2, null "name", null "status"
-                from tempdb..%s tmp
+    cmds = '''(select tmp.mgiID2, null as name, null as status
+                from %s tmp
 		where tmp.mgiID1TypeKey = 2
 		and tmp.mgiID2TypeKey = 2
 		and tmp.mgiID2 > 0
                 and not exists(select 1
                 from ACC_Accession a
                 where a.numericPart = tmp.mgiID2
-		and a.prefixPart = 'MGI:')
+		and a.prefixPart = 'MGI:'))
                 union
-                select tmp.mgiID2, t.name, null "status"
-                from tempdb..%s tmp, ACC_Accession a1, ACC_MGIType t
+                (select tmp.mgiID2, t.name, null as status
+                from %s tmp, ACC_Accession a1, ACC_MGIType t
                 where a1.numericPart = tmp.mgiID2
 		and a1.prefixPart = 'MGI:'
 		and tmp.mgiID1TypeKey = 2
@@ -993,10 +1005,10 @@ def qcOrgMarkerPartMarker():
                         where a2.numericPart = tmp.mgiID2
 			and a2.prefixPart = 'MGI:'
                         and a2._LogicalDB_key = 1
-                        and a2._MGIType_key = 2)
+                        and a2._MGIType_key = 2))
                 union
-                select tmp.mgiID2, t.name, ms.status
-                from tempdb..%s tmp,ACC_Accession a, ACC_MGIType t,
+                (select tmp.mgiID2, t.name, ms.status
+                from %s tmp,ACC_Accession a, ACC_MGIType t,
                         MRK_Marker m, MRK_Status ms
                 where a.numericPart = tmp.mgiID2
 		and a.prefixPart = 'MGI:'
@@ -1009,7 +1021,7 @@ def qcOrgMarkerPartMarker():
                 and a._Object_key = m._Marker_key
                 and m._Marker_Status_key not in (1,3)
                 and m._Marker_Status_key = ms._Marker_Status_key
-                order by tmp.mgiID2''' % (idTempTable, idTempTable, idTempTable)
+                order by tmp.mgiID2)''' % (idTempTable, idTempTable, idTempTable)
     #print cmds
     print 'running sql for results2 %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
 	time.localtime(time.time()))
@@ -1019,7 +1031,7 @@ def qcOrgMarkerPartMarker():
     cmds = '''select tmp.mgiID1,
                        m.symbol,
                        a2.accID
-                from tempdb..%s tmp,
+                from %s tmp,
                      ACC_Accession a1,
                      ACC_Accession a2,
                      MRK_Marker m
@@ -1045,7 +1057,7 @@ def qcOrgMarkerPartMarker():
     cmds = '''select tmp.mgiID2,
                        m.symbol,
                        a2.accID
-                from tempdb..%s tmp,
+                from %s tmp,
                      ACC_Accession a1,
                      ACC_Accession a2,
                      MRK_Marker m
@@ -1284,27 +1296,43 @@ def processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, \
     refKey = jNumDict[jNum]
 
     # query for relationships with the uniqueness key 
+    # sc 6/17 - this works and returns same number (27153789) in sybase 
+    # and postgres when all the r.* = %s are removed. This is the count 
+    # in the test databases for the MGI_Relationship_Property table; as
+    # expected
     cmd = '''select r._Relationship_key, r._Category_key,
 	    r._Object_key_1,
 	    r._RelationshipTerm_key, r._Object_key_2,
 	    r._Qualifier_key, r._Evidence_key, r._Refs_key,
 	    t.term as propName, rp.value, nc.note
-	from MGI_Relationship r, MGI_Relationship_Property rp,
-	     VOC_Term t, MGI_Note n, MGI_NoteChunk nc
+	from MGI_Relationship_Property rp
+	LEFT OUTER JOIN MGI_Relationship r on (
+	    rp._Relationship_key = r._Relationship_key
+	)
+	LEFT OUTER JOIN VOC_Term t on (
+	    rp._PropertyName_key = t._Term_key
+	)
+	LEFT OUTER JOIN MGI_Note n on (
+	    r._Relationship_key = n._Object_key
+	    and n._MGIType_key = 40
+	)
+	LEFT OUTER JOIN MGI_NoteChunk nc on (
+	    n._Note_key = nc._Note_key
+ 	)
 	where r._Category_key = %s
 	and r._Object_key_1 = %s
 	and r._RelationshipTerm_key = %s
 	and r._Object_key_2 = %s
 	and r._Qualifier_key = %s
 	and r._Evidence_key = %s
-	and r._Refs_key = %s
-	and r._Relationship_key *= rp._Relationship_key
-	and rp._PropertyName_key *= t._Term_key
-	and r._Relationship_key *= n._Object_key
-	and n._Note_key *= nc._Note_key
-	and n._MGIType_key = 40''' % (catKey, orgKey, rvKey, \
+	and r._Refs_key = %s''' % (catKey, orgKey, rvKey, \
 	    partKey, qualKey, evidKey, refKey) #, 'auto')
+    #print 'command'
+    #print cmd
     results = db.sql(cmd, 'auto')
+
+    #print 'results'
+    #print results
 
     # organize rows by relationships key, may be multi properties/notes/
     # per relationship
@@ -1389,7 +1417,7 @@ def runQcChecks ():
     global badPropList, actionList, categoryList, qualifierList
     global evidenceList, jNumList, userList, relIdList, obsRelIdList
     global relVocabList, relDagList, badPropList, badPropValueList
-    global badECPropValueList, exprCompDupList
+    global badECPropValueList, exprCompDupList, lineCt
 
     #
     # Expected columns; those not listed are for curator use
@@ -1428,7 +1456,7 @@ def runQcChecks ():
     qcHeader(header)
 
     #
-    # do the organizer/participant ID checks - these functions use tempdb
+    # do the organizer/participant ID checks - these functions use temp table
     # and write any errors to the directly to the report
     #
     print 'Running qcInvalidMgiPrefix() %s' % time.strftime( \
@@ -1447,6 +1475,7 @@ def runQcChecks ():
     # Iterate through the input file to do the remaining QC checks
     #
     line = fpInput.readline()
+    #print 'line: %s' % line
     lineCt += 1
     while line:
 
@@ -1859,7 +1888,7 @@ def closeFiles ():
 # end closeFiles) -------------------------------
 
 #
-# Purpose: Load tempdb table with input file data
+# Purpose: Load temp table with input file data
 # Returns: Nothing
 # Assumes: Connection to db has been established
 # Effects: Modifies global variables
@@ -1886,6 +1915,7 @@ def loadTempTables ():
     #
     junk = fp.readline() # header
     line = fp.readline()
+    #print 'line: %s' % line
     while line:
 	(action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, \
 	    evid, jNum, creator, note) = map(string.strip, string.split( \
@@ -1950,11 +1980,8 @@ def loadTempTables ():
 	    obj1IdTypeKey = categoryDict[cat]['_MGIType_key_1']
 	    obj2IdTypeKey = categoryDict[cat]['_MGIType_key_2']
 
-	    #print 'obj1Id: %s obj1IdInt: %s' % (obj1Id, obj1IdInt)
-	    #print 'obj2Id: %s obj2IdInt: %s' % (obj2Id, obj2IdInt)
-	    #print '%s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, \
-            #    obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, \
-            #    cat, CRT)
+	    #print 'writing to bcp file: %s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB,  obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, cat, CRT)
+
 	    fpIDBCP.write('%s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, \
 		obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, \
 		cat, CRT))
@@ -1967,24 +1994,25 @@ def loadTempTables ():
     fpIDBCP.close()
 
     #
-    # Load the temp tables with the input data.
+    # Load the temp table with the input data.
     #
     #print 'Load the relationship data into the temp table: %s' % idTempTable
     sys.stdout.flush()
-    bcpCmd = 'cat %s | bcp tempdb..%s in %s -c -t"%s" -S%s -U%s' % ( \
-	passwordFile, idTempTable, idBcpFile, TAB, db.get_sqlServer(), \
-	    db.get_sqlUser())
+## NEW
+    bcpCmd = '%s %s %s %s ./ %s "\\t" "\\n" mgd' % (bcpin, server, database, idTempTable, idBcpFile)
+
+    #print 'bcpCmd: %s' % bcpCmd
     rc = os.system(bcpCmd)
     if rc <> 0:
         closeFiles()
         sys.exit(1)
-    
-    db.sql('''create index idx1 on tempdb..%s (mgiID1)''' % idTempTable, None)
-    db.sql('''create index idx2 on tempdb..%s (mgiID1TypeKey)'''  % \
-	idTempTable, None)
-    db.sql('''create index idx3 on tempdb..%s (mgiID2)''' % idTempTable, None)
-    db.sql('''create index idx4 on tempdb..%s (mgiID2TypeKey)''' % \
-	idTempTable, None)
+
+#    db.sql('''create index idx1 on %s (mgiID1)''' % idTempTable, None)
+#    db.sql('''create index idx2 on %s (mgiID1TypeKey)'''  % \
+#	idTempTable, None)
+#    db.sql('''create index idx3 on %s (mgiID2)''' % idTempTable, None)
+#    db.sql('''create index idx4 on %s (mgiID2TypeKey)''' % \
+#	idTempTable, None)
 
     return
 

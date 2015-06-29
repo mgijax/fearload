@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/sh
 
 #
 # This script is a wrapper around the process that loads 
@@ -16,6 +16,7 @@ LOG=`pwd`/fearload.log
 rm -rf ${LOG}
 
 USAGE='Usage: fearload.sh'
+SCHEMA='mgd'
 
 #
 #  Verify the argument(s) to the shell script.
@@ -96,7 +97,7 @@ cleanDir ${OUTPUTDIR}
 LASTRUN_FILE=${INPUTDIR}/lastrun
 if [ -f ${LASTRUN_FILE} ]
 then
-    if /usr/local/bin/test ${LASTRUN_FILE} -nt ${INPUT_FILE_DEFAULT}
+    if test ${LASTRUN_FILE} -nt ${INPUT_FILE_DEFAULT}
     then
 
         echo "Input file has not been updated - skipping load" | tee -a ${LOG_PROC}
@@ -184,7 +185,8 @@ then
     ${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
 
     # BCP new data
-    ${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+
+    ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} ${SCHEMA} >> ${LOG_DIAG}
 
     # Create indexes
     ${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
@@ -197,7 +199,7 @@ then
     ${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
 
     # BCP new data
-    ${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+    ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} ${SCHEMA} >> ${LOG_DIAG}
 
     # Create indexes
     ${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
@@ -210,7 +212,7 @@ then
     ${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
 
     # BCP new data
-    ${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+    ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} ${SCHEMA} >> ${LOG_DIAG}
 
     # Create indexes
     ${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
@@ -223,7 +225,7 @@ then
     ${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
 
     # BCP new data
-    ${MGI_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} >> ${LOG_DIAG}
+    ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} ${SCHEMA} >> ${LOG_DIAG}
 
     # Create indexes
     ${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}

@@ -1,3 +1,11 @@
+TAG: fearload-tr11750-1
+DATE: 06/29/2015
+STAFF: sc
+CHANGES: 
+1) fearQC.sh - new temp table creation syntax
+2) fearQC.py - update all lookup queries, update loading of temp table
+3) fearload.sh - update bcpin calls
+
 TAG: fearload-tr11750-BP
 DATE: 06/04/2015
 STAFF: sc

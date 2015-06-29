@@ -89,6 +89,8 @@ else
     echo ${USAGE}; exit 1
 fi
 
+#echo "INPUT_FILE: ${INPUT_FILE}"
+
 #
 # Make sure the configuration file exists and source it.
 #
@@ -99,7 +101,8 @@ else
     echo "Missing configuration file: ${CONFIG}"
     exit 1
 fi
-
+#echo "MGD_DBSERVER ${MGD_DBSERVER}"
+#echo "MGD_DBSERVER ${MGD_DBNAME}"
 #
 # If this is not a "live" run, the output, log and report files should reside
 # in the current directory, so override the default settings.
@@ -262,24 +265,25 @@ MGI_ID_TEMP_TABLE=${MGI_ID_TEMP_TABLE}_${USER}
 echo "" >> ${LOG}
 date >> ${LOG}
 echo "Create temp tables for the input data" >> ${LOG}
-cat - <<EOSQL | isql -S${MGD_DBSERVER} -D${MGD_DBNAME} -U${MGI_PUBLICUSER} -P`cat ${MGI_PUBPASSWORDFILE}` -e  >> ${LOG}
-
-use tempdb
-go
+cat - <<EOSQL | psql -h${MGD_DBSERVER} -d${MGD_DBNAME} -U mgd_dbo -e  >> ${LOG}
 
 create table ${MGI_ID_TEMP_TABLE} (
     mgiID1 int not null,
     mgiID1TypeKey int not null,
     mgiID2 int not null,
     mgiID2TypeKey int not null,
-    category varchar(50) not null,
-)
-go
+    category varchar(50) not null
 
-grant all on  ${MGI_ID_TEMP_TABLE} to public
-go
+);
 
-quit
+create index idx1 on ${MGI_ID_TEMP_TABLE} (mgiID1);
+create index idx2 on ${MGI_ID_TEMP_TABLE} (mgiID1TypeKey);
+create index idx3 on ${MGI_ID_TEMP_TABLE} (mgiID2);
+create index idx4 on ${MGI_ID_TEMP_TABLE} (mgiID2TypeKey);
+
+grant all on ${MGI_ID_TEMP_TABLE} to public;
+grant all on ${MGI_ID_TEMP_TABLE} to mgd_dbo;
+
 EOSQL
 
 date >> ${LOG}
@@ -327,16 +331,11 @@ fi
 #
 echo "" >> ${LOG}
 date >> ${LOG}
-echo "Drop the temp tables" >> ${LOG}
-cat - <<EOSQL | isql -S${MGD_DBSERVER} -D${MGD_DBNAME} -U${MGI_PUBLICUSER} -P`cat ${MGI_PUBPASSWORDFILE}` -e  >> ${LOG}
+echo "Drop the temp table" >> ${LOG}
+cat - <<EOSQL | psql -h${MGD_DBSERVER} -d${MGD_DBNAME} -U mgd_dbo -e  >> ${LOG}
 
-use tempdb
-go
+drop table ${MGI_ID_TEMP_TABLE};
 
-drop table ${MGI_ID_TEMP_TABLE}
-go
-
-quit
 EOSQL
 
 echo "" >> ${LOG}
