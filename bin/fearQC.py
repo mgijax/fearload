@@ -1397,8 +1397,7 @@ def processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, \
 	    deleteRptList.append(rptLine)
 
 	    # creat a delete sql line and write it to the delete sql file 
-	    sqlLine  = '''delete from MGI_Relationship
-		where _Relationship_key = %s%sgo%s''' % (rKey, CRT, CRT)
+	    sqlLine  = 'delete from MGI_Relationship where _Relationship_key = %s;%s' % (rKey, CRT)
 	    fpDeleteSQL.write(sqlLine)
 
     return

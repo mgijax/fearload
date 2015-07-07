@@ -154,14 +154,15 @@ checkStatus ${STAT} "${FEARLOAD}/bin/fearload.py"
 # check for empty file
 # get password from password file
 # execute sql file
-
+echo "PGPASSFILE: ${PGPASSFILE}"
 if [ -s "${DELETE_SQL}" ]
 then
-    # example isql -S$MGD_DBSERVER -D$DATABASE -Umgd_public -Pmgdpub -w200 -i $SQL >> $OUTPUT
     echo "" >> ${LOG_DIAG}
     date >> ${LOG_DIAG}
     echo 'Deleting Relationships'  >> ${LOG_DIAG}
-    isql -S${MGD_DBSERVER} -D${MGD_DBNAME} -U${MGD_DBUSER} -P`cat ${MGD_DBPASSWORDFILE}` -w300 -i ${DELETE_SQL} >> ${LOG_DIAG}
+    #isql -S${MGD_DBSERVER} -D${MGD_DBNAME} -U${MGD_DBUSER} -P`cat ${MGD_DBPASSWORDFILE}` -w300 -i ${DELETE_SQL} >> ${LOG_DIAG}
+    psql -U${MGD_DBUSER} -h${MGD_DBSERVER} -d${MGD_DBNAME} -f ${DELETE_SQL} -e > ${LOG_DIAG} 2>&1
+
 fi
 
 #
