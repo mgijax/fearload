@@ -67,37 +67,32 @@ then
     mkdir -p ${INPUTDIR}
 fi
 
-# If this installation is being done on lindon, create a symbolic link to
-# the same input file path on hobbiton where the input file is published.
+# If this installation is being done on bhmgiapp01, create a symbolic link to
+# the same input file path on bhmgiapp01 where the input file is published.
 # The input directory should be locked down to protect the symbolic link.
 #
-if [ ${SERVER_NAME} = "lindon" ]
+if [ ${SERVER_NAME} = "bhmgiapp01" ]
 then
     rm -f ${INPUT_FILE_DEFAULT}
     ln -s /hobbiton${INPUT_FILE_DEFAULT} ${INPUT_FILE_DEFAULT}
-
-    chmod -f 755 ${INPUTDIR}
 fi
 
 #
-# If this installation is being done on hobbiton and the input file
+# For any server, if the input file
 # does not exist already, create one that is writable. This is just a
 # place holder until an input file is published. The input directory
 # should be opened up to allow the curation staff to publish new input
 # files.
 #
-if [ ${SERVER_NAME} = "hobbiton" ]
+if [ ! -f ${INPUT_FILE_DEFAULT} ]
 then
-    if [ ! -f ${INPUT_FILE_DEFAULT} ]
-    then
-        touch ${INPUT_FILE_DEFAULT}
-        chmod 664 ${INPUT_FILE_DEFAULT}
-        chgrp mgi ${INPUT_FILE_DEFAULT}
-    fi
-
-    chmod -f 775 ${INPUTDIR}
-    chgrp mgi ${INPUTDIR}
+    touch ${INPUT_FILE_DEFAULT}
+    chmod 664 ${INPUT_FILE_DEFAULT}
+    chgrp mgi ${INPUT_FILE_DEFAULT}
 fi
+
+chmod -f 775 ${INPUTDIR}
+chgrp mgi ${INPUTDIR}
 
 #
 # The DLAInstall script removes all permissions from shell scripts for
@@ -105,10 +100,7 @@ fi
 # script needs to have permissions restored on hobbiton to allow the
 # curation staff to run it.
 #
-if [ ${SERVER_NAME} = "hobbiton" ]
-then
-    chmod -f 755 ${LOAD_QC_SH}
-fi
+chmod -f 755 ${LOAD_QC_SH}
 
 # copy the scripts for curator use into a standard location which exists in
 # their path statements
