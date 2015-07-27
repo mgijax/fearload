@@ -210,15 +210,8 @@ def init ():
     # open input/output files
     openFiles()
 
-    #
-    # create database connection
-    #
-    user = os.environ['MGI_PUBLICUSER']
-    passwordFile = os.environ['MGI_PUBPASSWORDFILE']
-
-    db.set_sqlUser(user)
-    db.set_sqlPasswordFromFile(passwordFile)
     db.useOneConnection(1)
+
     #
     # create lookups
     #
