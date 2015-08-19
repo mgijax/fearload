@@ -101,8 +101,17 @@ else
     echo "Missing configuration file: ${CONFIG}"
     exit 1
 fi
-#echo "MGD_DBSERVER ${MGD_DBSERVER}"
-#echo "MGD_DBSERVER ${MGD_DBNAME}"
+
+#
+# If the QC check is being run by a curator, the mgd_dbo password needs to
+# be in a password file in their HOME directory because they won't have
+# permission to read the password file in the pgdbutilities product.
+#
+if [ "${USER}" != "mgiadmin" ]
+then
+    PGPASSFILE=$HOME/.pgpass
+fi
+
 #
 # If this is not a "live" run, the output, log and report files should reside
 # in the current directory, so override the default settings.
