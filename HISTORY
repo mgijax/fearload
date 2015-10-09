@@ -1,3 +1,8 @@
+TAG: fearload-6-0-0-4
+DATE: 10/09/2015
+STAFF: sc
+CHANGES: Bug - not checking that there are at least as many data columns fro properties as there are Property header columns
+
 TAG: fearload-6-0-0-3
 DATE: 8/19/2015
 STAFF: dbm

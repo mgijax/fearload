@@ -126,6 +126,9 @@ mgiPrefix = 'mgi:'
 # columns 1-numNonPropCol may NOT include properties
 numNonPropCol=13
 
+# number of header columns
+numHeaderColumns = None
+
 #  list of rows with errors by attribute
 actionList = []
 categoryList = []
@@ -139,6 +142,7 @@ relVocabList = []
 relDagList = []
 badPropList = []
 badPropValueList = []
+missingPropValueList = []
 # bad expresses component property values
 badECPropValueList = []
 
@@ -1409,6 +1413,7 @@ def runQcChecks ():
     global badPropList, actionList, categoryList, qualifierList
     global evidenceList, jNumList, userList, relIdList, obsRelIdList
     global relVocabList, relDagList, badPropList, badPropValueList
+    global missingPropValueList
     global badECPropValueList, exprCompDupList, lineCt
 
     #
@@ -1478,6 +1483,12 @@ def runQcChecks ():
                 line, TAB))[:13])
 
         remainingTokens = map(string.strip, string.split(line, TAB)[13:])
+	if len(remainingTokens) + numNonPropCol < numHeaderColumns:
+	    hasFatalErrors = 1
+	    missingPropValueList.append('%-12s  %-20s' % (lineCt,line))
+	    line = fpInput.readline()
+            lineCt += 1
+	    continue
 	if action != 'add' and action != 'delete':
 	    hasFatalErrors = 1
 	    actionList.append('%-12s  %-20s' % (lineCt, action))
@@ -1823,6 +1834,13 @@ def writeReport():
              ('Line#','Property', 'Value', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(string.join(badPropValueList, CRT))
+    if len(missingPropValueList):
+	fpQcRpt.write(CRT + CRT + string.center('Lines with missing Property Values',60)+\
+            CRT)
+        fpQcRpt.write('%-12s  %-20s%s' %
+             ('Line#','Line', CRT))
+        fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
+        fpQcRpt.write(string.join(missingPropValueList, CRT))
 
     if len(badECPropValueList):
         fpQcRpt.write(CRT + CRT + string.center('Invalid Expresses Component Property Values',60)+\
@@ -1887,7 +1905,7 @@ def closeFiles ():
 # Throws: Nothing
 #
 def loadTempTables ():
-    global badIdDict
+    global badIdDict, numHeaderColumns
 
     print 'Create a bcp file from relationship input file'
     sys.stdout.flush()
@@ -1906,6 +1924,7 @@ def loadTempTables ():
     # and write them to a bcp file.
     #
     junk = fp.readline() # header
+    numHeaderColumns = len(string.split(junk, TAB))
     line = fp.readline()
     #print 'line: %s' % line
     while line:
