@@ -142,7 +142,7 @@ relVocabList = []
 relDagList = []
 badPropList = []
 badPropValueList = []
-missingPropValueList = []
+missingPropColumnList = []
 # bad expresses component property values
 badECPropValueList = []
 
@@ -1413,7 +1413,7 @@ def runQcChecks ():
     global badPropList, actionList, categoryList, qualifierList
     global evidenceList, jNumList, userList, relIdList, obsRelIdList
     global relVocabList, relDagList, badPropList, badPropValueList
-    global missingPropValueList
+    global missingPropColumnList
     global badECPropValueList, exprCompDupList, lineCt
 
     #
@@ -1485,7 +1485,7 @@ def runQcChecks ():
         remainingTokens = map(string.strip, string.split(line, TAB)[13:])
 	if len(remainingTokens) + numNonPropCol < numHeaderColumns:
 	    hasFatalErrors = 1
-	    missingPropValueList.append('%-12s  %-20s' % (lineCt,line))
+	    missingPropColumnList.append('%-12s  %-20s' % (lineCt,line))
 	    line = fpInput.readline()
             lineCt += 1
 	    continue
@@ -1834,13 +1834,13 @@ def writeReport():
              ('Line#','Property', 'Value', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(string.join(badPropValueList, CRT))
-    if len(missingPropValueList):
-	fpQcRpt.write(CRT + CRT + string.center('Lines with missing Property Values',60)+\
+    if len(missingPropColumnList):
+	fpQcRpt.write(CRT + CRT + string.center('Lines with Missing Property Columns',60)+\
             CRT)
         fpQcRpt.write('%-12s  %-20s%s' %
              ('Line#','Line', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
-        fpQcRpt.write(string.join(missingPropValueList, CRT))
+        fpQcRpt.write(string.join(missingPropColumnList, CRT))
 
     if len(badECPropValueList):
         fpQcRpt.write(CRT + CRT + string.center('Invalid Expresses Component Property Values',60)+\
