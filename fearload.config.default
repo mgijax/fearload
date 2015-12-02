@@ -110,10 +110,7 @@ export LOAD_MODE
 # will be set by wrapper based on collection for each load
 MAIL_LOADNAME="Feature Relationship Load"
 
-#  Recipient list for mailing the curation log file (comma-separated)
-MAIL_LOG_CUR=""
-
-export MAIL_LOADNAME MAIL_LOG_CUR
+export MAIL_LOADNAME
 
 #  INSTALLDIR expected by dlautils/DLAInstall
 INSTALLDIR=${FEARLOAD}
