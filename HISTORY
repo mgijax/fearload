@@ -1,3 +1,9 @@
+TAG: fearload-6-0-1-1
+DATE: 12/2/2015
+STAFF: dbm
+CHANGES: TR11904 & TR12199
+1) fearload.config.default: Remove MAIL_LOG_CUR setting
+
 TAG: fearload-6-0-0-5
 TAG: fearload-6-0-0-4
 DATE: 10/09/2015
