@@ -1302,9 +1302,9 @@ def processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, \
 	    r._RelationshipTerm_key, r._Object_key_2,
 	    r._Qualifier_key, r._Evidence_key, r._Refs_key,
 	    t.term as propName, rp.value, nc.note
-	from MGI_Relationship_Property rp
-	LEFT OUTER JOIN MGI_Relationship r on (
-	    rp._Relationship_key = r._Relationship_key
+	from MGI_Relationship r
+	LEFT OUTER JOIN MGI_Relationship_Property rp on (
+	    r._Relationship_key = rp._Relationship_key
 	)
 	LEFT OUTER JOIN VOC_Term t on (
 	    rp._PropertyName_key = t._Term_key
