@@ -67,16 +67,6 @@ then
     mkdir -p ${INPUTDIR}
 fi
 
-# If this installation is being done on bhmgiapp01, create a symbolic link to
-# the same input file path on bhmgiapp01 where the input file is published.
-# The input directory should be locked down to protect the symbolic link.
-#
-if [ ${SERVER_NAME} = "bhmgiapp01" ]
-then
-    rm -f ${INPUT_FILE_DEFAULT}
-    ln -s /hobbiton${INPUT_FILE_DEFAULT} ${INPUT_FILE_DEFAULT}
-fi
-
 #
 # For any server, if the input file
 # does not exist already, create one that is writable. This is just a
@@ -97,7 +87,7 @@ chgrp mgi ${INPUTDIR}
 #
 # The DLAInstall script removes all permissions from shell scripts for
 # group "other" on non-development servers. The QC report wrapper
-# script needs to have permissions restored on hobbiton to allow the
+# script needs to have permissions restored to allow the
 # curation staff to run it.
 #
 chmod -f 755 ${LOAD_QC_SH}
