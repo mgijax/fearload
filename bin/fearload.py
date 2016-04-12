@@ -529,16 +529,10 @@ def createFiles( ):
 		(nextNoteKey, TAB, nextRelationshipKey, TAB, relationshipMgiTypeKey, TAB, relationshipNoteTypeKey, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT))
 
 	    # MGI_NoteChunk
-	    seqNum = 0
-	    while len(note) > 255:
-		print 'chunk: "%s"' % chunk
-		seqNum += 1
-		fpNoteChunkFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s'% \
-		    (nextNoteKey, TAB, seqNum, TAB, note[255:], TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT))
+	    seqNum = 1
 	    if  len(note) > 0:
 		fpNoteChunkFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s'% \
                     (nextNoteKey, TAB, seqNum, TAB, note, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT))
-
 
 	# MGI_Relationship_Property
 	seqNum = 0
