@@ -66,6 +66,9 @@ import db
 import time
 import Set
 
+db.setAutoTranslate(False)
+db.setAutoTranslateBE(False)
+
 #
 #  CONSTANTS
 #
