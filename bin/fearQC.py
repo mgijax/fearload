@@ -656,7 +656,7 @@ def qcOrgAllelePartMarker():
                 and a._LogicalDB_key = 1
                 and a._MGIType_key = t._MGIType_key
                 and a._Object_key = m._Marker_key
-                and m._Marker_Status_key = 2
+                and m._Marker_Status_key != 1
                 and m._Marker_Status_key = ms._Marker_Status_key
                 order by tmp.mgiID2''' % idTempTable
     print 'running sql for results2c %s ' % time.strftime("%H.%M.%S.%m.%d.%y", \
@@ -930,7 +930,7 @@ def qcOrgMarkerPartMarker():
     # Participant are both markers and:
     # 1) Does not exist in the database.
     # 2) Exist for a non-marker object.
-    # 3) Exist for a marker, but the status is not "official" or "interim".
+    # 3) Exist for a marker, but the status is not "official"
     # 4) Are secondary
     cmds = '''(select tmp.mgiID1, null as name, null as status
 		from %s tmp
@@ -971,7 +971,7 @@ def qcOrgMarkerPartMarker():
 		and a._MGIType_key = 2
 		and a._MGIType_key = t._MGIType_key
                 and a._Object_key = m._Marker_key
-                and m._Marker_Status_key = 2
+                and m._Marker_Status_key != 1
                 and m._Marker_Status_key = ms._Marker_Status_key
                 order by tmp.mgiID1)''' % (idTempTable, idTempTable, idTempTable)
     #print cmds
@@ -1019,7 +1019,7 @@ def qcOrgMarkerPartMarker():
                 and a._LogicalDB_key = 1
                 and a._MGIType_key = t._MGIType_key
                 and a._Object_key = m._Marker_key
-                and m._Marker_Status_key = 2
+                and m._Marker_Status_key != 1
                 and m._Marker_Status_key = ms._Marker_Status_key
                 order by tmp.mgiID2)''' % (idTempTable, idTempTable, idTempTable)
     #print cmds
