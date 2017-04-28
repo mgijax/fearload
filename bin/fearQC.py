@@ -53,6 +53,9 @@
 #  Date        SE   Change Description
 #  ----------  ---  -------------------------------------------------------
 #
+# 04/27/2017   sc  TR12291 - exclude decreased_translational_product_level (RV:0001555)
+#                            from chromosome mismatch check for mutation_involves
+#
 #  03/11/2014  sc  Initial development
 #
 ###########################################################################
@@ -726,6 +729,8 @@ def qcOrgAllelePartMarker():
     db.sql('''create index idxMgiID1 on nonExpComp (mgiID1)''', None)
     db.sql('''create index idxMgiID2 on nonExpComp (mgiID2)''', None)
 
+    # exclude RV:0001555 'decreased_translational_product_level' as chromosome
+    # check does not apply
     cmds = '''select distinct tmp.mgiID1 as org, tmp.mgiID2 as part, 
 		    mo.chromosome as oChr, mp.chromosome as pChr
 		from nonExpComp tmp,
@@ -734,6 +739,7 @@ def qcOrgAllelePartMarker():
 		where tmp.mgiID1TypeKey = 11
 		and tmp.mgiID2TypeKey = 2
 		and tmp.mgiID1 > 0
+		and tmp.relID != 'RV:0001555'
 		and tmp.mgiID1 = ao.numericPart
 		and ao.prefixPart = 'MGI:'
 		and ao._MGIType_key =  11
@@ -1991,10 +1997,10 @@ def loadTempTables ():
 	    obj1IdTypeKey = categoryDict[cat]['_MGIType_key_1']
 	    obj2IdTypeKey = categoryDict[cat]['_MGIType_key_2']
 
-	    #print 'writing to bcp file: %s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB,  obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, cat, CRT)
+	    #print 'writing to bcp file: %s%s%s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB,  obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, relId, TAB, cat, CRT)
 
-	    fpIDBCP.write('%s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, \
-		obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, \
+	    fpIDBCP.write('%s%s%s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, \
+		obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, relId, TAB, \
 		cat, CRT))
         line = fp.readline()
 

@@ -1,3 +1,10 @@
+TAG: fearload-6-0-10-1
+DATE: 04/28/2017
+STAFF: sc
+CHANGES: TR12291 New Mutation_Involves relationship for RNAi alleles
+1)  fearQC.sh - add relationship ID to temp table
+2) fearQC.py - exclude new RelID from organizer/participant chromosome check
+
 TAG: fearload-6-0-7-1
 DATE: 01/05/2017
 STAFF: lec 
