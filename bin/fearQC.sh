@@ -135,6 +135,12 @@ rm -rf ${LOG}
 touch ${LOG}
 
 #
+# Convert the input file into a QC-ready version that can be used to run
+# the sanity/QC reports against.
+#
+dos2unix ${INPUT_FILE} ${INPUT_FILE} 2>/dev/null
+
+#
 # FUNCTION: Check for lines with missing columns in input file and
 #           write the line numbers to the sanity report.
 #
