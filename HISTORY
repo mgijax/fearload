@@ -1,3 +1,10 @@
+TAG: fearload-6-0-11-2
+DATE: 02/13/2018
+STAFF: sc
+CHANGES: TR12790 Bug in fearload when category is 'expresses_component' and 
+    rvID is 'RV:0000211' - change to report egID not propertyValue (which is 
+    outside scope of clause)
+
 TAG: fearload-6-0-11-1
 DATE: 01/04/2018
 STAFF: sc

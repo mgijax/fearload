@@ -1694,11 +1694,11 @@ def runQcChecks ():
 	    # we don't have a fatal or warning error check 
 	    # check the geneSymbol in the file against the gene symbol 
 	    # for the egID in the database (case insensitive)
-	    if cat == 'expresses_component' and relId == 'rv:0000211' \
+	    if cat == 'expresses_component' and relId == 'rv:0000211' and egID != '' \
 		    and not hasFatalErrors and not hasWarnErrors:
 		if not egSymbolDict.has_key(egID):
 		    reason = 'Non-mouse_NCBI_Gene_ID: %s not in MGI ' % \
-			propertyValue  + 'accession table'
+			egID  + 'accession table'
 		    fpWarnRpt.write('%-5s    %-75s%s' % (lineCt, reason, CRT))
 		    #print reason
 		else:
