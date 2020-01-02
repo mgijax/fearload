@@ -53,6 +53,9 @@
 #  Date        SE   Change Description
 #  ----------  ---  -------------------------------------------------------
 #
+# 11/15/2019   sc  TR13068 - organizer/participant chromosome check should allow
+#			     X to match XY and Y to match XY in both directions
+#
 # 04/27/2017   sc  TR12291 - exclude decreased_translational_product_level (RV:0001555)
 #                            from chromosome mismatch check for mutation_involves
 #
@@ -732,7 +735,7 @@ def qcOrgAllelePartMarker():
     # exclude RV:0001555 'decreased_translational_product_level' as chromosome
     # check does not apply
     cmds = '''select distinct tmp.mgiID1 as org, tmp.mgiID2 as part, 
-		    mo.chromosome as oChr, mp.chromosome as pChr
+		tmp.category, mo.chromosome as oChr, mp.chromosome as pChr
 		from nonExpComp tmp,
 		ALL_Allele a, MRK_Marker mo, MRK_Marker mp, ACC_Accession ao, 
 		    ACC_Accession ap
@@ -899,20 +902,40 @@ def qcOrgAllelePartMarker():
             fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
                 (sMgiID, symbol, pMgiID, which,  CRT))
 
-    if len(results5) > 0:
-	hasFatalErrors = 1
-	fpQcRpt.write(CRT + CRT + string.center('Mismatched chromosome in ' + \
-	    'Allele/Marker Relationships',80) + CRT)
-	fpQcRpt.write('%-20s  %-20s  %-20s  %-20s%s' %
-             ('Organizer MGI ID','Organizer chromosome', 
-		'Participant MGI ID', 'Participant chromosome', CRT))
-        fpQcRpt.write(20*'-' + '  ' + 20*'-' + '  ' + \
+    if len(results5):
+	rptList = []
+	for r in results5:
+	    oChr =  r['oChr']
+	    pChr = r['pChr']
+	    category = r['category']
+	    # special chromosome matching for mutation_involves
+	    if category == 'mutation_involves':
+		if (oChr == 'X' and pChr == 'XY') or (oChr == 'Y' and pChr == 'XY') or (oChr == 'XY' and pChr == 'X') or (oChr == 'XY' and pChr == 'Y'):
+		    fpWarnRpt.write('WARNING: Allele: MGI:%s chr: %s Marker: MGI:%s chr: %s%s' % \
+			(r['org'], oChr, r['part'], pChr, CRT))
+		    hasWarnErrors = 1
+
+		    continue
+		else:
+		    rptList.append('%-20s  %-20s  %-20s  %-20s' %
+		    ('MGI:%s' % r['org'], oChr, 'MGI:%s' % r['part'], \
+			pChr))
+	    # not mutation_involves - report
+	    else:
+		rptList.append('%-20s  %-20s  %-20s  %-20s' %
+		('MGI:%s' % r['org'], oChr, 'MGI:%s' % r['part'], \
+		    pChr))
+	if len(rptList):
+	    hasFatalErrors = 1
+	    fpQcRpt.write(CRT + CRT + string.center('Mismatched chromosome in ' + \
+		'Allele/Marker Relationships',80) + CRT)
+	    fpQcRpt.write('%-20s  %-20s  %-20s  %-20s%s' %
+		 ('Organizer MGI ID','Organizer chromosome', 
+		    'Participant MGI ID', 'Participant chromosome', CRT))
+	    fpQcRpt.write(20*'-' + '  ' + 20*'-' + '  ' + \
               20*'-' + '  ' + 20*'-' + CRT)
 	# report Chromosome mismatch between Organizer and Participant
-	for r in results5:
-	    fpQcRpt.write('%-20s  %-20s  %-20s  %-20s%s' %
-	    ('MGI:%s' % r['org'], r['oChr'], 'MGI:%s' % r['part'], \
-		r['pChr'],  CRT))
+	    fpQcRpt.write(string.join(rptList, CRT))
 
     return
 
