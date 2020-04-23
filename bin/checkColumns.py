@@ -57,7 +57,7 @@ def checkArgs ():
     global inputFile, numColumns
 
     if len(sys.argv) != 3:
-        print USAGE
+        print(USAGE)
         sys.exit(1)
 
     inputFile = sys.argv[1]
@@ -77,7 +77,7 @@ def openFile ():
     try:
         fpInput = open(inputFile, 'r')
     except:
-        print 'Cannot open input file: ' + inputFile
+        print('Cannot open input file: ' + inputFile)
         sys.exit(1)
     return
 
@@ -95,7 +95,7 @@ def checkColumns ():
     for line in fpInput.readlines():
         colError = 0
         lineNum = lineNum + 1
-        columns = map(string.strip, string.split(line, TAB))
+        columns = list(map(str.strip, str.split(line, TAB)))
         # remove newline from last column
         last = columns[-1].strip()
         columns[-1] = last
@@ -106,7 +106,7 @@ def checkColumns ():
         ### start code for missing data in req columns
         # If errors then wrong number of columns exists; so continue to next
         if colError > 0:
-            print 'Missing Column(s): %s' % (columns)
+            print('Missing Column(s): %s' % (columns))
             continue
         # default
         bad = 1
@@ -115,7 +115,7 @@ def checkColumns ():
         if columns[0] != '' and columns[1] != '' and columns[2] != '' and columns[4] != '' and columns[6] != '' and columns[9] != '' and columns[10] != '' and columns[11] != '':
             bad = 0
         if bad == 1:
-            print 'Missing Data in required column: %s' % (columns)
+            print('Missing Data in required column: %s' % (columns))
         ### end code for missing data in req columns
     return
 

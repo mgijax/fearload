@@ -20,6 +20,7 @@ usage ()
 }
 
 LOADDIR=/usr/local/mgi/live/dataload/fearload
+#LOADDIR=/home/sc/work/dataload/fearload
 
 WRAPPER=${LOADDIR}/bin/fearQC.sh
 

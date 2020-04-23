@@ -155,7 +155,7 @@ def checkArgs ():
     # Throws: Nothing
 
     if len(sys.argv) != 1:
-        print USAGE
+        print(USAGE)
         sys.exit(1)
     return
 
@@ -320,32 +320,32 @@ def openFiles ():
     try:
         fpInFile = open(inFile, 'r')
     except:
-        print 'Cannot open Feature relationships input file: %s' % inFile
+        print('Cannot open Feature relationships input file: %s' % inFile)
         sys.exit(1)
 
     try:
         fpRelationshipFile = open(relationshipFile, 'w')
     except:
-        print 'Cannot open Feature relationships bcp file: %s' % relationshipFile
+        print('Cannot open Feature relationships bcp file: %s' % relationshipFile)
         sys.exit(1)
 
     try:
         fpPropertyFile = open(propertyFile, 'w')
     except:
-        print 'Cannot open Feature relationships property bcp file: %s' % propertyFile
+        print('Cannot open Feature relationships property bcp file: %s' % propertyFile)
         sys.exit(1)
 
     try:
         fpNoteFile = open(noteFile, 'w')
     except:
-        print 'Cannot open Feature relationships Note bcp file: %s' % noteFile
+        print('Cannot open Feature relationships Note bcp file: %s' % noteFile)
         sys.exit(1)
 
     try:
         fpNoteChunkFile = open(noteChunkFile, 'w')
     except:
-        print 'Cannot open Feature relationships Note Chunk bcp file: %s' % \
-            noteChunkFile
+        print('Cannot open Feature relationships Note Chunk bcp file: %s' % \
+            noteChunkFile)
         sys.exit(1)
 
     return
@@ -395,15 +395,15 @@ def createFiles( ):
     inputPropDict = {}
 
     # get all property tokens
-    propTokens = map(string.strip, string.split(header, TAB))[13:]
+    propTokens = list(map(str.strip, str.split(header, TAB)))[13:]
 
     # iterate thru property column headers and load dictionary with the position
     # key and property name value
     colCt = 0
     for p in propTokens:
         colCt += 1
-        if string.find(p, ':'):
-            tokens = map(string.strip, string.split(p, ':'))
+        if str.find(p, ':'):
+            tokens = list(map(str.strip, str.split(p, ':')))
             if tokens[0].lower() == 'property' and len(tokens) == 2:
                 propName = tokens[1].lower()
                 # assume QC script has verified the propName
@@ -417,10 +417,10 @@ def createFiles( ):
 
         # get the first 12 lines - these are fixed columns; map to lower case
         # moved note (13) to 'remaining columns' as we don't want in lower case
-        (action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator) = map(string.lower, map(string.strip, string.split(line, TAB))[:12])
+        (action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator) = list(map(str.lower, list(map(str.strip, str.split(line, TAB)))[:12]))
 
         # get notes column (13) and any property columns (14+)
-        remainingColumns = map(string.strip, string.split(line, TAB))[12:]
+        remainingColumns = list(map(str.strip, str.split(line, TAB)))[12:]
 
         # get notes column
         note = remainingColumns[0]
@@ -436,81 +436,81 @@ def createFiles( ):
             continue
 
         # get the category key
-        if categoryDict.has_key(cat):
+        if cat in categoryDict:
             c = categoryDict[cat]
             catKey = c.key
         else:
-            print 'category (%s) not found in line ' % (cat, line)
+            print('category (%s) not found in line ' % (cat, line))
             continue
 
         # get the organizer key, determining if allele or marker
         if c.mgiTypeKey1 == 2:
-            if markerDict.has_key(obj1Id):
+            if obj1Id in markerDict:
                 objKey1 = markerDict[obj1Id]
             else:
-                print 'Organizer marker ID (%s) not found in line %s' % (obj1Id, line)
+                print('Organizer marker ID (%s) not found in line %s' % (obj1Id, line))
                 continue
         elif c.mgiTypeKey1 == 11:
-            if alleleDict.has_key(obj1Id):
+            if obj1Id in alleleDict:
                 objKey1 = alleleDict[obj1Id]
             else:
-                print 'Organizer Allele ID (%s) on line %s not found' % (obj1Id, line)
+                print('Organizer Allele ID (%s) on line %s not found' % (obj1Id, line))
                 continue
         else:
-            print 'Organizer mgiType not supported in line %s' % (obj1Id, line)
+            print('Organizer mgiType not supported in line %s' % (obj1Id, line))
 
         # get the participant key
         if c.mgiTypeKey2 == 2:
-            if markerDict.has_key(obj2Id):
+            if obj2Id in markerDict:
                 objKey2 = markerDict[obj2Id]
             else:
-                print 'Participant marker ID (%s) not found in line %s' % (obj2Id, line)
+                print('Participant marker ID (%s) not found in line %s' % (obj2Id, line))
                 continue
         # currently no allele participant, but coded for it anyway
         elif c.mgiTypeKey2 == 11:
-            if alleleDict.has_key(obj2Id):
+            if obj2Id in alleleDict:
                 objKey1 = alleleDict[obj2Id]
             else:
-                print 'Participant allele ID (%s) not found in line %s' % (obj1Id, line)
+                print('Participant allele ID (%s) not found in line %s' % (obj1Id, line))
                 continue
         else:
-            print 'Participant mgiType not supported in line %s' % (obj2Id, line)
+            print('Participant mgiType not supported in line %s' % (obj2Id, line))
 
         # get the relationship term key
-        if relationshipDict.has_key(relId):
+        if relId in relationshipDict:
             relKey = relationshipDict[relId]
         else:
-            print 'relationship id (%s) not found in line %s' % (relId, line)
+            print('relationship id (%s) not found in line %s' % (relId, line))
             continue
 
         # get the qualifier term key; empty qualifier gets default value
         if qual == '':
             qual = defaultQual
-        if qualifierDict.has_key(qual):
+        if qual in qualifierDict:
             qualKey = qualifierDict[qual]
         else:
-            print 'qualifier (%s) not found in line %s' % (qual, line)
+            print('qualifier (%s) not found in line %s' % (qual, line))
             continue
 
         # get the evidence term key
-        if evidenceDict.has_key(evid):
+        if evid in evidenceDict:
             evidKey = evidenceDict[evid]
         else:
-            print 'evidence (%s) not found in line %s' % (evid, line)
+            print('evidence (%s) not found in line %s' % (evid, line))
             continue
 
         # get the reference key
-        if jNumDict.has_key(jNum):
+        if jNum in jNumDict:
             refsKey = jNumDict[jNum]
         else:
-            print 'jNum (%s) not found in line %s' % (jNum, line)
+            print('jNum (%s) not found in line %s' % (jNum, line))
             continue
 
         # get the user key
-        if userDict.has_key(creator):
+        if creator in userDict:
             userKey = userDict[creator]
         else:
-            print 'User (%s) not found in line %s' % (creator, line)
+            print('User (%s) not found in line %s' % (creator, line))
             continue
 
         #
@@ -534,7 +534,7 @@ def createFiles( ):
 
         # MGI_Relationship_Property
         seqNum = 0
-        for i in inputPropDict.keys():
+        for i in list(inputPropDict.keys()):
             seqNum += 1
             propValue = remainingColumns[i-1]
             propNameKey = inputPropDict[i]
@@ -544,7 +544,7 @@ def createFiles( ):
                 continue
             # if property is 'score' convert the value to a float
             elif propNameKey == 11588491: 	# score
-                if string.find(propValue, '+')  == 0:
+                if str.find(propValue, '+')  == 0:
                     propValue = propValue[1:]
                 propValue = float(propValue)	# convert score to float
 
