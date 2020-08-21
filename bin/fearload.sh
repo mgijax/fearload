@@ -144,7 +144,7 @@ fi
 echo "" >> ${LOG_DIAG}
 date >> ${LOG_DIAG}
 echo "Run fearload.py"  | tee -a ${LOG_DIAG}
-${FEARLOAD}/bin/fearload.py  
+${PYTHON} ${FEARLOAD}/bin/fearload.py  
 STAT=$?
 checkStatus ${STAT} "${FEARLOAD}/bin/fearload.py"
 

@@ -153,7 +153,7 @@ checkColumns ()
     echo "" >> ${REPORT}
     echo "Lines With Missing Columns or Data" >> ${REPORT}
     echo "-----------------------------------" >> ${REPORT}
-    ${FEARLOAD}/bin/checkColumns.py ${FILE} ${NUM_COLUMNS} > ${TMP_FILE}
+    ${PYTHON} ${FEARLOAD}/bin/checkColumns.py ${FILE} ${NUM_COLUMNS} > ${TMP_FILE}
     cat ${TMP_FILE} >> ${REPORT}
     if [ `cat ${TMP_FILE} | wc -l` -eq 0 ]
     then
@@ -310,7 +310,7 @@ date >> ${LOG}
 echo "" >> ${LOG}
 date >> ${LOG}
 echo "Generate the QC reports" >> ${LOG}
-{ ${FEARLOAD}/bin/fearQC.py ${INPUT_FILE} 2>&1; echo $? > ${TMP_FILE}; } >> ${LOG}
+{ ${PYTHON} ${FEARLOAD}/bin/fearQC.py ${INPUT_FILE} 2>&1; echo $? > ${TMP_FILE}; } >> ${LOG}
 
 if [ `cat ${TMP_FILE}` -eq 1 ]
 then
