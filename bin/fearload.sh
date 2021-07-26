@@ -232,6 +232,10 @@ then
     ${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
 fi
 
+cat - <<EOSQL | ${PG_DBUTILS}/bin/doisql.csh $0 >> ${LOG_DIAG}
+select setval('mgi_relationship_seq', (select max(_Relationship_key) from MGI_Relationship));
+EOSQL
+
 #
 # Archive a copy of the input file, adding a timestamp suffix.
 #

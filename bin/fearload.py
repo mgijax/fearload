@@ -191,8 +191,7 @@ def init():
     #
     # get next MGI_Relationship and MGI_Relationship_Property keys
     #
-    results = db.sql('''select max(_Relationship_key) + 1 as nextKey
-            from MGI_Relationship''', 'auto')
+    results = db.sql('''select nextval('mgi_relationship_seq') as nextKey''', 'auto')
     if results[0]['nextKey'] is None:
         nextRelationshipKey = 1000
     else:
