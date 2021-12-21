@@ -99,6 +99,7 @@ idTempTable = os.environ['MGI_ID_TEMP_TABLE']
 
 # 1 if any QC errors in the input file
 hasFatalErrors = 0
+hasWarnErrors = 0
 
 # category lookup {name:query result set, ...} from the database
 categoryDict = {}
@@ -537,7 +538,7 @@ def openFiles ():
 #
 
 def qcOrgAllelePartMarker():
-    global hasFatalErrors
+    global hasFatalErrors, hasWarnErrors
 
     # Find any MGI IDs from the relationship who's Organizer is  allele
     # and Participant is marker and:
@@ -925,7 +926,7 @@ def qcOrgAllelePartMarker():
                 ('MGI:%s' % r['org'], oChr, 'MGI:%s' % r['part'], \
                     pChr))
         if len(rptList):
-            hasFatalErrors = 1
+            hasWarnErrors = 1
             fpQcRpt.write(CRT + CRT + str.center('Mismatched chromosome in ' + \
                 'Allele/Marker Relationships',80) + CRT)
             fpQcRpt.write('%-20s  %-20s  %-20s  %-20s%s' %
@@ -1437,7 +1438,7 @@ def processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, \
 # Throws: Nothing
 #
 def runQcChecks ():
-    global hasFatalErrors, deleteRptList, propIndexDict
+    global hasFatalErrors, hasWarnErrors, deleteRptList, propIndexDict
     global badPropList, actionList, categoryList, qualifierList
     global evidenceList, jNumList, userList, relIdList, obsRelIdList
     global relVocabList, relDagList, badPropList, badPropValueList
