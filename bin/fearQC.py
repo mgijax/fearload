@@ -219,7 +219,6 @@ def init ():
 
     # open input/output files
     openFiles()
-
     db.useOneConnection(1)
 
     #
@@ -227,17 +226,17 @@ def init ():
     #
 
     # FeaR Category Lookup
-    results = db.sql('''select name, _Category_key, _RelationshipVocab_key, 
-            _RelationshipDAG_key, _MGIType_key_1, _MGIType_key_2
-        from MGI_Relationship_Category''', 'auto')
-
+    results = db.sql('''
+        select name, _Category_key, _RelationshipVocab_key, _RelationshipDAG_key, _MGIType_key_1, _MGIType_key_2
+        from MGI_Relationship_Category
+        ''', 'auto')
     for r in results:
         categoryDict[r['name'].lower()] = r
 
     # FeaR vocab lookup
     #print 'FeaR vocab lookup %s' % mgi_utils.date()
-    results = db.sql('''select a.accID, a._Object_key, t.term, t.isObsolete, 
-            dn._DAG_key, vd._Vocab_key
+    results = db.sql('''
+        select a.accID, a._Object_key, t.term, t.isObsolete, dn._DAG_key, vd._Vocab_key
         from ACC_Accession a, VOC_Term t, DAG_Node dn, VOC_VocabDAG vd
         where a._MGIType_key = 13
         and a._LogicalDB_key = 171
@@ -246,71 +245,84 @@ def init ():
         and a._Object_key = t._Term_key
         and t._Term_key = dn._Object_key
         and dn._DAG_key between 44 and 47
-        and dn._DAG_key = vd._DAG_Key''', 'auto')
+        and dn._DAG_key = vd._DAG_Key
+        ''', 'auto')
     for r in results:
         relationshipDict[r['accID'].lower()] = r
 
     # FeaR qualifier lookup
     #print 'qualifier lookup %s' % mgi_utils.date()
-    results = db.sql('''select _Term_key, term
+    results = db.sql('''
+        select _Term_key, term
         from VOC_Term
         where _Vocab_key = 94
-        and isObsolete = 0''', 'auto')
+        and isObsolete = 0
+        ''', 'auto')
     for r in results:
         qualifierDict[r['term'].lower()] = r['_Term_key']
     
     # FeaR evidence lookup
     #print 'evidence lookup %s' % mgi_utils.date()
-    results = db.sql('''select _Term_key, abbreviation
+    results = db.sql('''
+        select _Term_key, abbreviation
         from VOC_Term
         where _Vocab_key = 95
-        and isObsolete = 0''', 'auto')
+        and isObsolete = 0
+        ''', 'auto')
     for r in results:
         evidenceDict[r['abbreviation'].lower()] = r['_Term_key']
 
     # Reference lookup
     #print 'reference lookup %s' % mgi_utils.date()
-    results = db.sql('''select a.accID, a._Object_key
+    results = db.sql('''
+        select a.accID, a._Object_key
         from ACC_Accession a
         where a._MGIType_key = 1
         and a._LogicalDB_key = 1
         and a.preferred = 1
         and a.private = 0
-        and a.prefixPart = 'J:' ''', 'auto')
+        and a.prefixPart = 'J:' 
+        ''', 'auto')
     for r in results:
         jNumDict[r['accID'].lower()] = r['_Object_key']
 
     #EntrezGene id to symbol lookup
-    results = db.sql('''select a.accID, m.symbol
+    results = db.sql('''
+        select a.accID, m.symbol
         from ACC_Accession a, MRK_Marker m
         where a._LogicalDB_key = 55
         and a._MGIType_key = 2
         and a.preferred = 1
         and a._Object_key = m._Marker_key
-        and m._Organism_key != 1''', 'auto')
+        and m._Organism_key != 1
+        ''', 'auto')
     for r in results:
         egSymbolDict[r['accID']] = r['symbol']
 
     # Creator lookup
     #print 'creator lookup %s' % mgi_utils.date()
-    results = db.sql('''select login, _User_key
+    results = db.sql('''
+        select login, _User_key
         from MGI_User
-        where _UserStatus_key = 316350''', 'auto')
+        where _UserStatus_key = 316350
+        ''', 'auto')
     for r in results:
         userDict[r['login'].lower()] = r['_User_key']
 
     # Properties lookup
-    results = db.sql('''select _Term_key, term
+    results = db.sql('''
+        select _Term_key, term
         from VOC_Term 
-        where _Vocab_key = 97''', 'auto')
+        where _Vocab_key = 97
+        ''', 'auto')
     for r in results:
         validPropDict[r['term'].lower()] = r['_Term_key']
     #print 'validPropDict: %s' % validPropDict
 
     # Expresses component lookup
     # this returns 3836 on sybase and on postgres
-    db.sql('''select r.*, a.accid as relID, v1.term as qual,
-            v2.abbreviation as evid, v3.term as propName, p.value as propValue
+    db.sql('''
+        select r.*, a.accid as relID, v1.term as qual, v2.abbreviation as evid, v3.term as propName, p.value as propValue
         into temp EC
         from ACC_Accession a, VOC_Term v1, VOC_Term v2, MGI_Relationship r
         LEFT OUTER JOIN MGI_Relationship_Property p on (
@@ -323,13 +335,13 @@ def init ():
         and r._RelationshipTerm_key = a._Object_key
         and a._MGIType_key = 13
         and a._LogicalDB_key = 171
-        and preferred = 1''', None)
-    
+        and preferred = 1
+        ''', None)
     db.sql('create index idxObjKey1 on EC(_Object_key_1)', None)
     db.sql('create index idxObjKey2 on EC(_Object_key_2)', None)
 
-    results = db.sql('''select distinct a1.accID as alleleID, a2.accID as markerID, 
-            e.relID, e.qual, e.evid, e.propName, e.propValue, e._Relationship_key
+    results = db.sql('''
+        select distinct a1.accID as alleleID, a2.accID as markerID, e.relID, e.qual, e.evid, e.propName, e.propValue, e._Relationship_key
         from EC e, ACC_Accession a1, ACC_Accession a2
         where e._Object_key_1 = a1._Object_key
         and a1._MGIType_key = 11
@@ -341,15 +353,18 @@ def init ():
         and a2.prefixPart = 'MGI:'
         and a2._LogicalDB_key = 1
         and a2.preferred = 1
-        order by _Relationship_key''', 'auto')
+        order by _Relationship_key
+        ''', 'auto')
     #print 'Num results: %s' % len(results)
     resDict = {}
+
     # organize by relationship; multi properties per relationship
     for r in results:
         key = r['_Relationship_key']
         if key not in resDict:
             resDict[key] = []
         resDict[key].append(r)
+
     # not create expr comp lookup list $a
     for key in list(resDict.keys()):
         #print key
@@ -361,6 +376,7 @@ def init ():
         orgPropVal = ''
         symbolPropVal = ''
         geneIDPropVal = ''
+
         for r in resDict[key]:
             if r['propName'] == None:
                 continue
@@ -372,6 +388,7 @@ def init ():
                 geneIDPropVal =  r['propValue']
             else:
                 print('unrecognized property name')
+
         exprCompList.append(exprCompTemplate % (alleleID, relID, markerID, qual, evid, orgPropVal, symbolPropVal, geneIDPropVal))
     #print exprCompList
 
@@ -397,12 +414,12 @@ def loadTempTableLookups():
     global alleleDict, markerDict
 
     # load org=allele, part= marker from temp table
-    results = db.sql('''select distinct tmp.mgiID1, 
+    results = db.sql('''
+            select distinct tmp.mgiID1, 
                 a1._Object_key as _Allele_key, aa.symbol as alleleSymbol, 
                 tmp.mgiID2, a2._Object_key as _Marker_key, 
                 m.symbol as markerSymbol
-            from %s tmp, ACC_Accession a1, ACC_Accession a2,
-                ALL_Allele aa, MRK_Marker m
+            from %s tmp, ACC_Accession a1, ACC_Accession a2, ALL_Allele aa, MRK_Marker m
             where tmp.mgiID1TypeKey = 11
             and tmp.mgiID2TypeKey = 2
             and tmp.mgiID1 = a1.numericPart
@@ -414,7 +431,8 @@ def loadTempTableLookups():
             and a2._MGIType_key = 2
             and a2.preferred = 1
             and a2._LogicalDB_key = 1
-            and a2._Object_key = m._Marker_key''' % idTempTable, 'auto')
+            and a2._Object_key = m._Marker_key
+            ''' % idTempTable, 'auto')
 
     # load alleleDict and markerDict from query results
     for r in results:
@@ -427,8 +445,10 @@ def loadTempTableLookups():
         if markerID not in markerDict:
             markerDict[markerID] = [r['_Marker_key'], r['markerSymbol']]
     #print alleleDict
+
     # load org=marker, part=marker from temp table
-    results = db.sql('''select distinct tmp.mgiID1, 
+    results = db.sql('''
+            select distinct tmp.mgiID1, 
                 a1._Object_key as _Marker_key_1, m1.symbol as symbol1, 
                 tmp.mgiID2, a2._Object_key as _Marker_key_2, 
                 m2.symbol as symbol2
@@ -445,8 +465,9 @@ def loadTempTableLookups():
             and a2._MGIType_key = 2
             and a2.preferred = 1
             and a2._LogicalDB_key = 1
-            and a2._Object_key = m2._Marker_key''' % \
-                idTempTable, 'auto')
+            and a2._Object_key = m2._Marker_key
+            ''' % idTempTable, 'auto')
+
     # load markerDict from query results
     for r in results:
         markerID1 = 'mgi:%s' % r['mgiID1']
@@ -761,20 +782,14 @@ def qcOrgAllelePartMarker():
     sys.stdout.flush()
     results5 = db.sql(cmds, 'auto')
                 
-        
-    print('writing OrgAllelePartMarker reports %s' % time.strftime( \
-        "%H.%M.%S.%m.%d.%y" , time.localtime(time.time())))
+    print('writing OrgAllelePartMarker reports %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time())))
     sys.stdout.flush()
     if len(results1a) >0 or len(results1b) >0 or len(results1c) >0  or \
         len(results2a) >0 or len(results2b) >0 or len(results2c):
         hasFatalErrors = 1
-        fpQcRpt.write(CRT + CRT + str.center('Invalid Allele/Marker ' + \
-            'Relationships',80) + CRT)
-        fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
-             ('MGI ID','Object Type',
-              'Status','Reason',CRT))
-        fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + \
-              20*'-' + '  ' + 30*'-' + CRT)
+        fpQcRpt.write(CRT + CRT + str.center('Invalid Allele/Marker ' + 'Relationships',80) + CRT)
+        fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' % ('MGI ID','Object Type', 'Status','Reason',CRT))
+        fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + 20*'-' + '  ' + 30*'-' + CRT)
 
     #
     # Write MGI ID1 records to the report.
@@ -791,9 +806,8 @@ def qcOrgAllelePartMarker():
             alleleStatus = ''
 
         reason = 'Organizer does not exist'
+        errorList.append('%-12s  %-20s  %-20s  %-30s' % (organizer, objectType, alleleStatus, reason))
 
-        errorList.append('%-12s  %-20s  %-20s  %-30s' %
-            (organizer, objectType, alleleStatus, reason))
     for r in results1b:
         organizer = 'MGI:%s' % r['mgiID1']
         objectType = r['name']
@@ -805,9 +819,7 @@ def qcOrgAllelePartMarker():
             alleleStatus = ''
         
         reason = 'Organizer exists for non-allele'
-
-        errorList.append('%-12s  %-20s  %-20s  %-30s' %
-            (organizer, objectType, alleleStatus, reason))
+        errorList.append('%-12s  %-20s  %-20s  %-30s' % (organizer, objectType, alleleStatus, reason))
 
     for r in results1c:
         organizer = 'MGI:%s' % r['mgiID1']
@@ -820,9 +832,7 @@ def qcOrgAllelePartMarker():
             alleleStatus = ''
 
         reason = 'Organizer allele status is invalid'
-
-        errorList.append('%-12s  %-20s  %-20s  %-30s' %
-            (organizer, objectType, alleleStatus, reason))
+        errorList.append('%-12s  %-20s  %-20s  %-30s' % (organizer, objectType, alleleStatus, reason))
 
     #
     # Write MGI ID2 records to the report.
@@ -838,9 +848,7 @@ def qcOrgAllelePartMarker():
             alleleStatus = ''
 
         reason = 'Participant does not exist'
-
-        errorList.append('%-12s  %-20s  %-20s  %-30s' %
-            (organizer, objectType, alleleStatus, reason))
+        errorList.append('%-12s  %-20s  %-20s  %-30s' % (organizer, objectType, alleleStatus, reason))
 
     for r in results2b:
         organizer = 'MGI:%s' % r['mgiID2']
@@ -853,9 +861,7 @@ def qcOrgAllelePartMarker():
             alleleStatus = ''
 
         reason = 'Participant exists for non-marker'
-
-        errorList.append('%-12s  %-20s  %-20s  %-30s' %
-            (organizer, objectType, alleleStatus, reason))
+        errorList.append('%-12s  %-20s  %-20s  %-30s' % (organizer, objectType, alleleStatus, reason))
 
     for r in results2c:
         organizer = 'MGI:%s' % r['mgiID2']
@@ -868,22 +874,17 @@ def qcOrgAllelePartMarker():
             alleleStatus = ''
 
         reason = 'Participant marker status is invalid'
+        errorList.append('%-12s  %-20s  %-20s  %-30s' % (organizer, objectType, alleleStatus, reason))
 
-        errorList.append('%-12s  %-20s  %-20s  %-30s' %
-            (organizer, objectType, alleleStatus, reason))
     s = set(errorList)
     errorList = list(s)
     fpQcRpt.write(CRT.join(errorList))
 
     if len(results3) >0 or len(results4) >0:
         hasFatalErrors = 1
-        fpQcRpt.write(CRT + CRT + str.center('Secondary MGI IDs used in ' + \
-            'Allele/Marker Relationships',80) + CRT)
-        fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
-             ('2ndary MGI ID','Symbol',
-              'Primary MGI ID','Organizer or Participant?',CRT))
-        fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + \
-              20*'-' + '  ' + 28*'-' + CRT)
+        fpQcRpt.write(CRT + CRT + str.center('Secondary MGI IDs used in ' + 'Allele/Marker Relationships',80) + CRT)
+        fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' % ('2ndary MGI ID','Symbol', 'Primary MGI ID','Organizer or Participant?',CRT))
+        fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + 20*'-' + '  ' + 28*'-' + CRT)
 
         # report Organizer discrepancies
         for r in results3:
@@ -891,16 +892,15 @@ def qcOrgAllelePartMarker():
             symbol = r['symbol']
             pMgiID = r['accID']
             which = 'Organizer'
-            fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
-                (sMgiID, symbol, pMgiID, which,  CRT))
+            fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' % (sMgiID, symbol, pMgiID, which,  CRT))
+
         # report Participant discrepancies
         for r in results4:
             sMgiID = 'MGI:%s' % r['mgiID2']
             symbol = r['symbol']
             pMgiID = r['accID']
             which = 'Participant'
-            fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
-                (sMgiID, symbol, pMgiID, which,  CRT))
+            fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' % (sMgiID, symbol, pMgiID, which,  CRT))
 
     if len(results5):
         rptList = []
@@ -908,34 +908,27 @@ def qcOrgAllelePartMarker():
             oChr =  r['oChr']
             pChr = r['pChr']
             category = r['category']
+
             # special chromosome matching for mutation_involves
             if category == 'mutation_involves':
                 if (oChr == 'X' and pChr == 'XY') or (oChr == 'Y' and pChr == 'XY') or (oChr == 'XY' and pChr == 'X') or (oChr == 'XY' and pChr == 'Y'):
-                    fpWarnRpt.write('WARNING: Allele: MGI:%s chr: %s Marker: MGI:%s chr: %s%s' % \
-                        (r['org'], oChr, r['part'], pChr, CRT))
+                    fpWarnRpt.write('WARNING: Allele: MGI:%s chr: %s Marker: MGI:%s chr: %s%s' % (r['org'], oChr, r['part'], pChr, CRT))
                     hasWarnErrors = 1
-
                     continue
                 else:
-                    rptList.append('%-20s  %-20s  %-20s  %-20s' %
-                    ('MGI:%s' % r['org'], oChr, 'MGI:%s' % r['part'], \
-                        pChr))
+                    rptList.append('%-20s  %-20s  %-20s  %-20s' % ('MGI:%s' % r['org'], oChr, 'MGI:%s' % r['part'], pChr))
+
             # not mutation_involves - report
             else:
-                rptList.append('%-20s  %-20s  %-20s  %-20s' %
-                ('MGI:%s' % r['org'], oChr, 'MGI:%s' % r['part'], \
-                    pChr))
+                rptList.append('%-20s  %-20s  %-20s  %-20s' % ('MGI:%s' % r['org'], oChr, 'MGI:%s' % r['part'], pChr))
+
         if len(rptList):
+            # report Chromosome mismatch between Organizer and Participant
             hasWarnErrors = 1
-            fpQcRpt.write(CRT + CRT + str.center('Mismatched chromosome in ' + \
-                'Allele/Marker Relationships',80) + CRT)
-            fpQcRpt.write('%-20s  %-20s  %-20s  %-20s%s' %
-                 ('Organizer MGI ID','Organizer chromosome', 
-                    'Participant MGI ID', 'Participant chromosome', CRT))
-            fpQcRpt.write(20*'-' + '  ' + 20*'-' + '  ' + \
-              20*'-' + '  ' + 20*'-' + CRT)
-        # report Chromosome mismatch between Organizer and Participant
-            fpQcRpt.write(CRT.join(rptList))
+            fpWarnRpt.write(CRT + CRT + str.center('Mismatched chromosome in ' + 'Allele/Marker Relationships',80) + CRT)
+            fpWarnRpt.write('%-20s  %-20s  %-20s  %-20s%s' % ('Organizer MGI ID','Organizer chromosome', 'Participant MGI ID', 'Participant chromosome', CRT))
+            fpWarnRpt.write(20*'-' + '  ' + 20*'-' + '  ' + 20*'-' + '  ' + 20*'-' + CRT)
+            fpWarnRpt.write(CRT.join(rptList) + CRT)
 
     return
 
@@ -958,7 +951,9 @@ def qcOrgMarkerPartMarker():
     # 2) Exist for a non-marker object.
     # 3) Exist for a marker, but the status is not "official"
     # 4) Are secondary
-    cmds = '''(select tmp.mgiID1, null as name, null as status
+
+    cmds = '''
+        (select tmp.mgiID1, null as name, null as status
                 from %s tmp
                 where tmp.mgiID1TypeKey = 2
                 and tmp.mgiID2TypeKey = 2
@@ -999,14 +994,16 @@ def qcOrgMarkerPartMarker():
                 and a._Object_key = m._Marker_key
                 and m._Marker_Status_key != 1
                 and m._Marker_Status_key = ms._Marker_Status_key
-                order by tmp.mgiID1)''' % (idTempTable, idTempTable, idTempTable)
+                order by tmp.mgiID1)
+                ''' % (idTempTable, idTempTable, idTempTable)
     #print cmds
     print('running sql for results1 %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
         time.localtime(time.time())))
     sys.stdout.flush()
     results1 = db.sql(cmds, 'auto')
 
-    cmds = '''(select tmp.mgiID2, null as name, null as status
+    cmds = '''
+        (select tmp.mgiID2, null as name, null as status
                 from %s tmp
                 where tmp.mgiID1TypeKey = 2
                 and tmp.mgiID2TypeKey = 2
@@ -1047,20 +1044,16 @@ def qcOrgMarkerPartMarker():
                 and a._Object_key = m._Marker_key
                 and m._Marker_Status_key != 1
                 and m._Marker_Status_key = ms._Marker_Status_key
-                order by tmp.mgiID2)''' % (idTempTable, idTempTable, idTempTable)
+                order by tmp.mgiID2)
+                ''' % (idTempTable, idTempTable, idTempTable)
     #print cmds
-    print('running sql for results2 %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
-        time.localtime(time.time())))
+    print('running sql for results2 %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time())))
     sys.stdout.flush()
     results2 = db.sql(cmds, 'auto')
  
-    cmds = '''select tmp.mgiID1,
-                       m.symbol,
-                       a2.accID
-                from %s tmp,
-                     ACC_Accession a1,
-                     ACC_Accession a2,
-                     MRK_Marker m
+    cmds = '''
+                select tmp.mgiID1, m.symbol, a2.accID
+                from %s tmp, ACC_Accession a1, ACC_Accession a2, MRK_Marker m
                 where tmp.mgiID1 = a1.numericPart
                       and a1.prefixPart = 'MGI:'
                       and tmp.mgiID1TypeKey = 2
@@ -1074,19 +1067,16 @@ def qcOrgMarkerPartMarker():
                       and a2._LogicalDB_key = 1
                       and a2.preferred = 1
                       and a2._Object_key = m._Marker_key
-                order by tmp.mgiID1''' % idTempTable
+                order by tmp.mgiID1
+                ''' % idTempTable
     print('running sql for results3 %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
         time.localtime(time.time())))
     sys.stdout.flush()
     results3 = db.sql(cmds, 'auto')
 
-    cmds = '''select tmp.mgiID2,
-                       m.symbol,
-                       a2.accID
-                from %s tmp,
-                     ACC_Accession a1,
-                     ACC_Accession a2,
-                     MRK_Marker m
+    cmds = '''
+                select tmp.mgiID2, m.symbol, a2.accID
+                from %s tmp, ACC_Accession a1, ACC_Accession a2, MRK_Marker m
                 where tmp.mgiID2 = a1.numericPart
                       and a1.prefixPart = 'MGI:'
                       and tmp.mgiID1TypeKey = 2
@@ -1100,25 +1090,21 @@ def qcOrgMarkerPartMarker():
                       and a2._LogicalDB_key = 1
                       and a2.preferred = 1
                       and a2._Object_key = m._Marker_key
-                order by tmp.mgiID2''' % idTempTable
+                order by tmp.mgiID2
+                ''' % idTempTable
 
     print('running sql for results4 %s' % time.strftime("%H.%M.%S.%m.%d.%y" , \
         time.localtime(time.time())))
     sys.stdout.flush()
     results4 = db.sql(cmds, 'auto')
  
-    print('writing OrgMarkerPartMarker reports  %s' % time.strftime( \
-        "%H.%M.%S.%m.%d.%y" , time.localtime(time.time())))
+    print('writing OrgMarkerPartMarker reports  %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time())))
     sys.stdout.flush()
     if len(results1) >0 or len(results2) >0:
         hasFatalErrors = 1
-        fpQcRpt.write(CRT + CRT + str.center('Invalid Marker/Marker ' + \
-            'Relationships',80) + CRT)
-        fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
-             ('MGI ID','Object Type',
-              'Status','Reason',CRT))
-        fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + \
-              20*'-' + '  ' + 30*'-' + CRT)
+        fpQcRpt.write(CRT + CRT + str.center('Invalid Marker/Marker ' + 'Relationships',80) + CRT)
+        fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' % ('MGI ID','Object Type', 'Status','Reason',CRT))
+        fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + 20*'-' + '  ' + 30*'-' + CRT)
  
     #
     # Write MGI ID1 records to the report.
@@ -1140,8 +1126,7 @@ def qcOrgMarkerPartMarker():
         else:
             reason = 'Organizer	marker status is invalid'
 
-        fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
-            (organizer, objectType, markerStatus, reason, CRT))
+        fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' % (organizer, objectType, markerStatus, reason, CRT))
 
     #
     # Write MGI ID2 records to the report.
@@ -1163,18 +1148,13 @@ def qcOrgMarkerPartMarker():
         else:
             reason = 'Participant marker status is invalid'
 
-        fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' %
-            (participant, objectType, markerStatus, reason, CRT))
+        fpQcRpt.write('%-12s  %-20s  %-20s  %-30s%s' % (participant, objectType, markerStatus, reason, CRT))
 
     if len(results3) >0 or len(results4) >0:
         hasFatalErrors = 1
-        fpQcRpt.write(CRT + CRT + str.center('Secondary MGI IDs used in ' + \
-        'Marker/Marker Relationships',80) + CRT)
-        fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
-             ('2ndary MGI ID','Symbol',
-              'Primary MGI ID','Organizer or Participant?',CRT))
-        fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + \
-              20*'-' + '  ' + 28*'-' + CRT)
+        fpQcRpt.write(CRT + CRT + str.center('Secondary MGI IDs used in ' + 'Marker/Marker Relationships',80) + CRT)
+        fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' % ('2ndary MGI ID','Symbol', 'Primary MGI ID','Organizer or Participant?',CRT))
+        fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + 20*'-' + '  ' + 28*'-' + CRT)
 
         # report Organizer discrepancies
         for r in results3:
@@ -1182,16 +1162,15 @@ def qcOrgMarkerPartMarker():
             symbol = r['symbol']
             pMgiID = r['accID']
             which = 'Organizer'
-            fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
-                (sMgiID, symbol, pMgiID, which,  CRT))
+            fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' % (sMgiID, symbol, pMgiID, which,  CRT))
+
         # report Participant discrepancies
         for r in results4:
             sMgiID = 'MGI:%s' % r['mgiID2']
             symbol = r['symbol']
             pMgiID = r['accID']
             which = 'Participant'
-            fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' %
-                (sMgiID, symbol, pMgiID, which,  CRT))
+            fpQcRpt.write('%-12s  %-20s  %-20s  %-28s%s' % (sMgiID, symbol, pMgiID, which,  CRT))
     
     return
 
@@ -1209,8 +1188,7 @@ def qcInvalidMgiPrefix ():
     global hasFatalErrors
 
     # IDs w/o proper MGI ID prefix
-    print('processing bad MGI IDs %s' % time.strftime("%H.%M.%S.%m.%d.%y" , \
-        time.localtime(time.time())))
+    print('processing bad MGI IDs %s' % time.strftime("%H.%M.%S.%m.%d.%y" , time.localtime(time.time())))
     sys.stdout.flush()
     badIdList = []
     for id in list(badIdDict.keys()):
@@ -1222,8 +1200,7 @@ def qcInvalidMgiPrefix ():
     if len(badIdList):
         hasFatalErrors = 1
         fpQcRpt.write(CRT + CRT + str.center('Invalid MGI IDs',40) + CRT)
-        fpQcRpt.write('%-15s  %-25s%s' %
-             ('MGI ID','Organizer or Participant?', CRT))
+        fpQcRpt.write('%-15s  %-25s%s' % ('MGI ID','Organizer or Participant?', CRT))
         fpQcRpt.write(15*'-' + '  ' + 25*'-' + CRT)
         fpQcRpt.write(CRT.join(badIdList))
 
@@ -1258,34 +1235,36 @@ def qcHeader(header):
     for h in headerTokens:
         #print 'header: %s' % h
         colCt += 1
+
         if str.find(h, ':'):
             # remove leading/trailing WS e.g. ' Property : score ' -->
             # ['Property', 'score']
             tokens = list(map(str.strip, str.split(h, ':')))
+
             # property column header must have 'Property:' prefix
             if tokens[0] == 'property':
+
                 # property column header must have one value
                 if len(tokens) != 2:
-                    badPropList.append('%-12s  %-20s  %-30s' %
-                        (lineCt, h, 'Property header with invalid format' ))
+                    badPropList.append('%-12s  %-20s  %-30s' % (lineCt, h, 'Property header with invalid format' ))
+
                 # columns 1-13 may not be property columns
                 elif colCt <= numNonPropCol:
-                    badPropList.append('%-12s  %-20s  %-30s' %
-                        (lineCt, h, 'Property header in column 1-13' ))
+                    badPropList.append('%-12s  %-20s  %-30s' % (lineCt, h, 'Property header in column 1-13' ))
+
                 else:
                     value = tokens[1]
+
                     # property name must be in the controlled vocab
                     if value not in list(validPropDict.keys()):
-                        badPropList.append('%-12s  %-20s  %-30s' %
-                        (lineCt, h.strip(), 'Invalid property value' ))
+                        badPropList.append('%-12s  %-20s  %-30s' % (lineCt, h.strip(), 'Invalid property value' ))
                     else:
                         propIndexDict[colCt-14] = [value, False]
 
     # if there are bad property column header(s) report them
     if len(badPropList):
         fpQcRpt.write(CRT + CRT + str.center('Invalid Properties',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s  %-20s%s' %
-             ('Line#','Property Header', 'Reason', CRT))
+        fpQcRpt.write('%-12s  %-20s  %-20s%s' % ('Line#','Property Header', 'Reason', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(badPropList))
         fpQcRpt.close()
@@ -1301,8 +1280,7 @@ def qcHeader(header):
 # Effects: Nothing
 # Throws: Nothing
 #
-def processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, \
-        evid, jNum, line, lineCt):
+def processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, evid, jNum, line, lineCt):
     global deleteRptList, deleteNotInDbList
 
     # resolve uniqueness key (UK) attributes to database keys
@@ -1314,6 +1292,7 @@ def processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, \
     else:
         #print 'marker'
         orgKey = markerDict[obj1Id][0]
+
     rvKey = relDict['_Object_key']
     partMGITypeKey = cDict['_MGIType_key_2']
     partKey = markerDict[obj2Id][0]
@@ -1326,7 +1305,8 @@ def processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, \
     # and postgres when all the r.* = %s are removed. This is the count 
     # in the test databases for the MGI_Relationship_Property table; as
     # expected
-    cmd = '''select r._Relationship_key, r._Category_key,
+    cmd = '''
+        select r._Relationship_key, r._Category_key,
             r._Object_key_1,
             r._RelationshipTerm_key, r._Object_key_2,
             r._Qualifier_key, r._Evidence_key, r._Refs_key,
@@ -1351,8 +1331,8 @@ def processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, \
         and r._Object_key_2 = %s
         and r._Qualifier_key = %s
         and r._Evidence_key = %s
-        and r._Refs_key = %s''' % (catKey, orgKey, rvKey, \
-            partKey, qualKey, evidKey, refKey) #, 'auto')
+        and r._Refs_key = %s
+        ''' % (catKey, orgKey, rvKey, partKey, qualKey, evidKey, refKey) #, 'auto')
     #print 'command'
     #print cmd
     results = db.sql(cmd, 'auto')
@@ -1372,8 +1352,7 @@ def processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, \
     # if UK not found in database, write to qc.rpt
     if not len(delRelDict):
         #print 'delete not in database'
-        deleteNotInDbList.append('%-12s   %-68s' % (lineCt, \
-            str.strip(line)))
+        deleteNotInDbList.append('%-12s   %-68s' % (lineCt, str.strip(line)))
     else:
         # if delete in database write to delete.rpt and delete.sql
         #print 'delete in database'
@@ -1477,24 +1456,20 @@ def runQcChecks ():
 
     header = fpInput.readline()  
     lineCt = 1
-    print('Running qcHeader() %s' % time.strftime("%H.%M.%S.%m.%d.%y" , \
-        time.localtime(time.time())))
+    print('Running qcHeader() %s' % time.strftime("%H.%M.%S.%m.%d.%y",time.localtime(time.time())))
     qcHeader(header)
 
     #
     # do the organizer/participant ID checks - these functions use temp table
     # and write any errors to the directly to the report
     #
-    print('Running qcInvalidMgiPrefix() %s' % time.strftime( \
-        "%H.%M.%S.%m.%d.%y" , time.localtime(time.time())))
+    print('Running qcInvalidMgiPrefix() %s' % time.strftime("%H.%M.%S.%m.%d.%y",time.localtime(time.time())))
     qcInvalidMgiPrefix()
 
-    print('Running qcOrgAllelePartMarker() %s' % time.strftime( \
-        "%H.%M.%S.%m.%d.%y" , time.localtime(time.time())))
+    print('Running qcOrgAllelePartMarker() %s' % time.strftime("%H.%M.%S.%m.%d.%y",time.localtime(time.time())))
     qcOrgAllelePartMarker()
 
-    print('Running qcOrgMarkerPartMarker() %s' % time.strftime( \
-        "%H.%M.%S.%m.%d.%y" , time.localtime(time.time())))
+    print('Running qcOrgMarkerPartMarker() %s' % time.strftime("%H.%M.%S.%m.%d.%y",time.localtime(time.time())))
     qcOrgMarkerPartMarker()
    
     #
@@ -1506,7 +1481,7 @@ def runQcChecks ():
     while line:
 
         # get the first 13 lines - these are fixed columns
-        (action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, \
+        (action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, 
             qual, evid, jNum, creator, note) = list(map( \
               str.lower, list(map(str.strip, str.split( \
                 line, TAB)))[:13]))
@@ -1518,9 +1493,11 @@ def runQcChecks ():
             line = fpInput.readline()
             lineCt += 1
             continue
+
         if action != 'add' and action != 'delete':
             hasFatalErrors = 1
             actionList.append('%-12s  %-20s' % (lineCt, action))
+
         # is the category value valid?
         if cat not in categoryDict:
             hasFatalErrors = 1
@@ -1584,8 +1561,7 @@ def runQcChecks ():
         
         # process a delete only if no fatal errors
         if action == 'delete' and not hasFatalErrors:
-            processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, \
-                evid, jNum, line, lineCt)
+            processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, evid, jNum, line, lineCt)
 
         # We only check properties for action=add i.e. not for deletes
         if action == 'add':
@@ -1631,31 +1607,21 @@ def runQcChecks ():
                 # 3) the gene symbol associated with the value in the file not 
                 #    same as the gene symbol in the database (case sensitive)
                 if cat == 'expresses_component' and relId == 'rv:0000211':
-                    if propertyName == 'non-mouse_organism' and \
-                        propertyValue == '':
+                    if propertyName == 'non-mouse_organism' and propertyValue == '':
                         hasFatalErrors = 1
-                        reason = '"expresses_an_orthologous_gene" ' + \
-                            'relationship with no "Non-mouse_Organism" ' + \
-                            'property value'
+                        reason = '"expresses_an_orthologous_gene" relationship with no "Non-mouse_Organism" property value'
                         toReport = '%-12s   %-68s ' % (lineCt, reason)
                         #if toReport not in badECPropValueList:
                         badECPropValueList.append(toReport)
-                    elif propertyName == 'non-mouse_gene_symbol' and \
-                        propertyValue == '':
+                    elif propertyName == 'non-mouse_gene_symbol' and propertyValue == '':
                         hasFatalErrors = 1
-                        reason = '"expresses_an_orthologous_gene" ' + \
-                            'relationship with no "Non-mouse_Gene_Symbol" ' + \
-                            'property value'
+                        reason = '"expresses_an_orthologous_gene" relationship with no "Non-mouse_Gene_Symbol" property value'
                         toReport = '%-12s   %-68s ' % (lineCt, reason)
                         #if toReport not in badECPropValueList:
                         badECPropValueList.append(toReport)
-                    elif propertyName == 'non-mouse_ncbi_gene_id' and \
-                        propertyValue == '':
-                        reason = 'Relationship term is ' + \
-                            '"expresses_an_orthologous_gene" and ' + \
-                            '"Non-mouse_NCBI_Gene_ID" not present.'
-                        fpWarnRpt.write('%-5s    %-75s%s' % \
-                            (lineCt, reason, CRT))
+                    elif propertyName == 'non-mouse_ncbi_gene_id' and propertyValue == '':
+                        reason = 'Relationship term is "expresses_an_orthologous_gene" and "Non-mouse_NCBI_Gene_ID" not present.'
+                        fpWarnRpt.write('%-5s    %-75s%s' % (lineCt, reason, CRT))
                         hasWarnErrors = 1
                     elif  propertyName == 'non-mouse_ncbi_gene_id':
                         egID = propertyValue
@@ -1668,29 +1634,23 @@ def runQcChecks ():
                 # should have no value
                 # (any text value).
                 elif cat == 'expresses_component' and relId == 'rv:0000210':
-                    if  propertyName == 'non-mouse_organism' and \
-                        propertyValue != '':
+                    if  propertyName == 'non-mouse_organism' and propertyValue != '':
                         hasFatalErrors = 1
-                        reason = '"expresses_mouse_gene" relationship with ' + \
-                            'a "Non-mouse_Organism" property value'
+                        reason = '"expresses_mouse_gene" relationship with a "Non-mouse_Organism" property value'
                         toReport = '%-12s   %-68s ' % (lineCt, reason)
                         #if toReport not in badECPropValueList:
                         badECPropValueList.append(toReport)
                         #print reason
-                    elif  propertyName == 'non-mouse_gene_symbol' and \
-                        propertyValue != '':
+                    elif  propertyName == 'non-mouse_gene_symbol' and propertyValue != '':
                         hasFatalErrors = 1
-                        reason = '"expresses_mouse_gene" relationship with ' + \
-                                'a "Non-mouse_Gene_Symbol" property value'
+                        reason = '"expresses_mouse_gene" relationship with a "Non-mouse_Gene_Symbol" property value'
                         toReport = '%-12s   %-68s ' % (lineCt, reason)
                         #if toReport not in badECPropValueList:
                         badECPropValueList.append(toReport)
                         #print reason
-                    elif propertyName == 'non-mouse_ncbi_gene_id' and \
-                        propertyValue != '':
+                    elif propertyName == 'non-mouse_ncbi_gene_id' and propertyValue != '':
                         hasFatalErrors = 1
-                        reason = '"expresses_mouse_gene" relationship with ' + \
-                            'a "Non-mouse_NCBI_Gene_ID" property value'
+                        reason = '"expresses_mouse_gene" relationship with a "Non-mouse_NCBI_Gene_ID" property value'
                         toReport = '%-12s   %-68s ' % (lineCt, reason)
                         #if toReport not in badECPropValueList:
                         badECPropValueList.append(toReport)
@@ -1708,8 +1668,7 @@ def runQcChecks ():
                     except:
                         #print 'invalid score: %s' % propertyValue
                         hasFatalErrors = 1
-                        badPropValueList.append('%-12s   %-20s  %-20s' % \
-                            (lineCt, propertyName, propertyValue))
+                        badPropValueList.append('%-12s   %-20s  %-20s' % (lineCt, propertyName, propertyValue))
 
             # After we've checked all properties, if 
             # the category is expresses_component and
@@ -1717,18 +1676,15 @@ def runQcChecks ():
             # we don't have a fatal or warning error check 
             # check the geneSymbol in the file against the gene symbol 
             # for the egID in the database (case insensitive)
-            if cat == 'expresses_component' and relId == 'rv:0000211' and egID != '' \
-                    and not hasFatalErrors and not hasWarnErrors:
+            if cat == 'expresses_component' and relId == 'rv:0000211' and egID != '' and not hasFatalErrors and not hasWarnErrors:
                 if egID not in egSymbolDict:
-                    reason = 'Non-mouse_NCBI_Gene_ID: %s not in MGI ' % \
-                        egID  + 'accession table'
+                    reason = 'Non-mouse_NCBI_Gene_ID: %s not in MGI ' % egID  + 'accession table'
                     fpWarnRpt.write('%-5s    %-75s%s' % (lineCt, reason, CRT))
                     #print reason
                 else:
                     dbSymbol = egSymbolDict[egID]
                     if geneSymbol != dbSymbol:
-                        reason = 'Non-mouse_NCBI_Gene_ID: %s associated symbol: %s not equal to the non-mouse gene symbol in file: %s' % \
-                            (egID, dbSymbol, geneSymbol)
+                        reason = 'Non-mouse_NCBI_Gene_ID: %s associated symbol: %s not equal to the non-mouse gene symbol in file: %s' % (egID, dbSymbol, geneSymbol)
                         #print reason
                         fpWarnRpt.write('%-5s    %-75s%s' % (lineCt, reason, CRT))
 
@@ -1782,113 +1738,92 @@ def writeReport():
     # Now write any errors to the report
     #
     if len(actionList):
-        fpQcRpt.write(CRT + CRT + str.center('Invalid Action Values',60) + \
-            CRT)
-        fpQcRpt.write('%-12s  %-20s%s' %
-             ('Line#','Action', CRT))
+        fpQcRpt.write(CRT + CRT + str.center('Invalid Action Values',60) + CRT)
+        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Action', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(actionList))
 
     if len(categoryList):
         fpQcRpt.write(CRT + CRT + str.center('Invalid Categories',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' %
-             ('Line#','Category', CRT))
+        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Category', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(categoryList))
         
     if len(qualifierList):
         fpQcRpt.write(CRT + CRT + str.center('Invalid Qualifiers',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' %
-             ('Line#','Qualifier', CRT))
+        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Qualifier', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(qualifierList))
 
     if len(evidenceList):
-        fpQcRpt.write(CRT + CRT + str.center('Invalid Evidence Codes',60) + \
-            CRT)
-        fpQcRpt.write('%-12s  %-20s%s' %
-             ('Line#','Evidence Code', CRT))
+        fpQcRpt.write(CRT + CRT + str.center('Invalid Evidence Codes',60) + CRT)
+        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Evidence Code', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(evidenceList))
 
     if len(jNumList):
         fpQcRpt.write(CRT + CRT + str.center('Invalid J Numbers',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' %
-             ('Line#','J Number', CRT))
+        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','J Number', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(jNumList))
 
     if len(userList):
         fpQcRpt.write(CRT + CRT + str.center('Invalid User Login',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' %
-             ('Line#','User Login', CRT))
+        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','User Login', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(userList))
 
     if len(relIdList):
-        fpQcRpt.write(CRT + CRT + str.center('Invalid Relationship IDs',60) \
-          + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' %
-             ('Line#','Relationship ID', CRT))
+        fpQcRpt.write(CRT + CRT + str.center('Invalid Relationship IDs',60) + CRT)
+        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Relationship ID', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(relIdList))
 
     if len(obsRelIdList):
-        fpQcRpt.write(CRT + CRT + str.center('Obsolete Relationship IDs',60)\
-           + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' %
-             ('Line#','Relationship ID', CRT))
+        fpQcRpt.write(CRT + CRT + str.center('Obsolete Relationship IDs',60) + CRT)
+        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Relationship ID', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(obsRelIdList))
 
     if len(relVocabList):
-        fpQcRpt.write(CRT + CRT + str.center('Relationship Vocab not ' + \
-            'the  same as Category Vocab',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' %
-             ('Line#','Relationship ID', CRT))
+        fpQcRpt.write(CRT + CRT + str.center('Relationship Vocab not ' + 'the  same as Category Vocab',60) + CRT)
+        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Relationship ID', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(relVocabList))
 
     if len(relDagList):
-        fpQcRpt.write(CRT + CRT + str.center('Relationship DAG not the ' + \
-            'same as Category DAG',60) + CRT)
-        fpQcRpt.write('%-12s  %-20s%s' %
-             ('Line#','Relationship ID', CRT))
+        fpQcRpt.write(CRT + CRT + str.center('Relationship DAG not the ' + 'same as Category DAG',60) + CRT)
+        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Relationship ID', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(relDagList))
+
     if len(badPropValueList):
-        fpQcRpt.write(CRT + CRT + str.center('Invalid Property Values',60)+\
-            CRT)
-        fpQcRpt.write('%-12s  %-20s  %-20s%s' %
-             ('Line#','Property', 'Value', CRT))
+        fpQcRpt.write(CRT + CRT + str.center('Invalid Property Values',60)+ CRT)
+        fpQcRpt.write('%-12s  %-20s  %-20s%s' % ('Line#','Property', 'Value', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(badPropValueList))
+
     if len(missingPropColumnList):
-        fpQcRpt.write(CRT + CRT + str.center('Lines with Missing Property Columns',60)+\
-            CRT)
-        fpQcRpt.write('%-12s  %-20s%s' %
-             ('Line#','Line', CRT))
+        fpQcRpt.write(CRT + CRT + str.center('Lines with Missing Property Columns',60)+ CRT)
+        fpQcRpt.write('%-12s  %-20s%s' % ('Line#','Line', CRT))
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(missingPropColumnList))
 
     if len(badECPropValueList):
-        fpQcRpt.write(CRT + CRT + str.center('Invalid Expresses Component Property Values',60)+\
-            CRT)
+        fpQcRpt.write(CRT + CRT + str.center('Invalid Expresses Component Property Values',60)+ CRT)
         fpQcRpt.write('%-12s  %-68s %s' % ('Line#','Reason', CRT))
         fpQcRpt.write(12*'-' + '  ' + 68*'-' + CRT)
         fpQcRpt.write(CRT.join(badECPropValueList))
 
     if len(deleteNotInDbList):
         hasFatalErrors = 1
-        fpQcRpt.write(CRT + CRT + str.center('Deletes not in Database',60)+\
-            CRT)
+        fpQcRpt.write(CRT + CRT + str.center('Deletes not in Database',60)+ CRT)
         fpQcRpt.write('%-12s  %-68s %s' % ('Line#','Line', CRT))
         fpQcRpt.write(12*'-' + '  ' + 68*'-' + CRT)
         fpQcRpt.write(CRT.join( deleteNotInDbList))
 
     if len(exprCompDupList):
-        fpQcRpt.write(CRT + CRT + str.center('Expressed Component lines Duplicated in the Database',60)+\
-            CRT)
+        fpQcRpt.write(CRT + CRT + str.center('Expressed Component lines Duplicated in the Database',60)+ CRT)
         fpQcRpt.write('%-12s  %-68s %s' % ('Line#','Line', CRT))
         fpQcRpt.write(12*'-' + '  ' + 68*'-' + CRT)
         fpQcRpt.write(CRT.join( exprCompDupList))
@@ -1896,13 +1831,11 @@ def writeReport():
     # if no fatal errors found write all deletes to informational delete report
     if len(deleteRptList) and not hasFatalErrors:
         fpWarnRpt.write('\nProcessing the specified input file will delete ' + \
-            '%s relationship records from the database. See %s for details %s' \
-            % (len(deleteRptList), deleteRptFile, CRT))
-
-        fpDeleteRpt.write(CRT + CRT + str.center('The following ' + \
-            'relationships will be deleted from the database',60) + CRT)
+            '%s relationship records from the database. See %s for details %s' % (len(deleteRptList), deleteRptFile, CRT))
+        fpDeleteRpt.write(CRT + CRT + str.center('The following ' + 'relationships will be deleted from the database',60) + CRT)
         fpDeleteRpt.write(80*'-' + CRT)
         fpDeleteRpt.write(CRT.join( deleteRptList))
+
     return
 
 # end writeReport() -------------------------------
@@ -1921,7 +1854,6 @@ def closeFiles ():
     fpWarnRpt.close()
     fpDeleteRpt.close()
     fpDeleteSQL.close()
-
     return
 
 # end closeFiles) -------------------------------
@@ -1957,9 +1889,7 @@ def loadTempTables ():
     line = fp.readline()
     #print 'line: %s' % line
     while line:
-        (action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, \
-            evid, jNum, creator, note) = list(map(str.strip, str.split( \
-                line, TAB)))[:13]
+        (action, cat, obj1Id, obj2sym, relId, relName, obj2Id, obj2sym, qual, evid, jNum, creator, note) = list(map(str.strip, str.split(line, TAB)))[:13]
         if cat not in categoryDict:
             print('FATAL ERROR Category: %s does not exist' % cat)
             sys.exit(1)
@@ -1976,8 +1906,7 @@ def loadTempTables ():
         # Process the Organizer ID	
         #
         # ID must have ':', suffix must exist, prefix must be 'MGI'
-        if obj1Id.find(':') == -1 or len(obj1Id.split(':')[1]) == 0 or \
-                obj1Id.split(':')[0] != 'MGI':
+        if obj1Id.find(':') == -1 or len(obj1Id.split(':')[1]) == 0 or obj1Id.split(':')[0] != 'MGI':
             badIdDict[obj1Id] = 'Organizer'
             badIdOrg = 1
             #print 'badId Organizer: %s' % obj1Id
@@ -1996,8 +1925,7 @@ def loadTempTables ():
         # Process the Participant ID
         #
         # ID must have ':', suffix must exist, prefix must be 'MGI'
-        if obj2Id.find(':') == -1 or len(obj2Id.split(':')[1]) == 0 or \
-                obj2Id.split(':')[0] != 'MGI':
+        if obj2Id.find(':') == -1 or len(obj2Id.split(':')[1]) == 0 or obj2Id.split(':')[0] != 'MGI':
             badIdDict[obj2Id] = 'Participant'
             badIdPart = 1
             #print 'badId Participant %s' % obj2Id
@@ -2019,12 +1947,9 @@ def loadTempTables ():
             # get the MGI Types
             obj1IdTypeKey = categoryDict[cat]['_MGIType_key_1']
             obj2IdTypeKey = categoryDict[cat]['_MGIType_key_2']
-
             #print 'writing to bcp file: %s%s%s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB,  obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, relId, TAB, cat, CRT)
+            fpIDBCP.write('%s%s%s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, relId, TAB, cat, CRT))
 
-            fpIDBCP.write('%s%s%s%s%s%s%s%s%s%s%s%s' % (obj1IdInt, TAB, \
-                obj1IdTypeKey, TAB, obj2IdInt, TAB, obj2IdTypeKey, TAB, relId, TAB, \
-                cat, CRT))
         line = fp.readline()
 
     #
@@ -2048,11 +1973,9 @@ def loadTempTables ():
         sys.exit(1)
 
 #    db.sql('''create index idx1 on %s (mgiID1)''' % idTempTable, None)
-#    db.sql('''create index idx2 on %s (mgiID1TypeKey)'''  % \
-#	idTempTable, None)
+#    db.sql('''create index idx2 on %s (mgiID1TypeKey)'''  % idTempTable, None)
 #    db.sql('''create index idx3 on %s (mgiID2)''' % idTempTable, None)
-#    db.sql('''create index idx4 on %s (mgiID2TypeKey)''' % \
-#	idTempTable, None)
+#    db.sql('''create index idx4 on %s (mgiID2TypeKey)''' % idTempTable, None)
 
     return
 
@@ -2061,32 +1984,27 @@ def loadTempTables ():
 #
 # Main
 #
-print('checkArgs(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
-    time.localtime(time.time())))
+print('checkArgs(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time())))
 sys.stdout.flush()
 checkArgs()
 
-print('init(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
-    time.localtime(time.time())))
+print('init(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time())))
 sys.stdout.flush()
 init()
 
-print('runQcChecks(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
-    time.localtime(time.time())))
+print('runQcChecks(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time())))
 sys.stdout.flush()
 runQcChecks()
 
-print('closeFiles(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", 
-    time.localtime(time.time())))
+print('closeFiles(): %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time())))
 sys.stdout.flush()
 closeFiles()
 
 db.useOneConnection(0)
-print('done: %s' % time.strftime("%H.%M.%S.%m.%d.%y", 
-    time.localtime(time.time())))
-
+print('done: %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time())))
 
 if hasFatalErrors == 1 : 
     sys.exit(2)
 else:
     sys.exit(0)
+
