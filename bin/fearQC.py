@@ -1322,9 +1322,6 @@ def processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, evid, jNum, 
             r._Relationship_key = n._Object_key
             and n._MGIType_key = 40
         )
-        LEFT OUTER JOIN MGI_NoteChunk nc on (
-            n._Note_key = nc._Note_key
-        )
         where r._Category_key = %s
         and r._Object_key_1 = %s
         and r._RelationshipTerm_key = %s
