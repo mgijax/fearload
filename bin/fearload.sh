@@ -219,21 +219,9 @@ then
     ${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
 fi
 
-TABLE=MGI_NoteChunk
-if [ -s "${OUTPUTDIR}/${TABLE}.bcp" ]
-then
-    # Drop indexes
-    ${MGD_DBSCHEMADIR}/index/${TABLE}_drop.object >> ${LOG_DIAG}
-
-    # BCP new data
-    ${PG_DBUTILS}/bin/bcpin.csh ${MGD_DBSERVER} ${MGD_DBNAME} ${TABLE} ${OUTPUTDIR} ${TABLE}.bcp ${COLDELIM} ${LINEDELIM} ${SCHEMA} >> ${LOG_DIAG}
-
-    # Create indexes
-    ${MGD_DBSCHEMADIR}/index/${TABLE}_create.object >> ${LOG_DIAG}
-fi
-
 cat - <<EOSQL | ${PG_DBUTILS}/bin/doisql.csh $0 >> ${LOG_DIAG}
 select setval('mgi_relationship_seq', (select max(_Relationship_key) from MGI_Relationship));
+select setval('mgi_note_seq', (select max(_Note_key) from MGI_Note));
 EOSQL
 
 #

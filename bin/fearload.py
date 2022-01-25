@@ -35,7 +35,6 @@
 #       1. MGI_Relationship.bcp
 #	2. MGI_Relationship_Property.bcp
 #	3. MGI_Note 
-#	4. MGI_NoteChunk 
 #
 #  Exit Codes:
 #
@@ -97,14 +96,12 @@ inFile = os.environ['INPUT_FILE_DEFAULT']
 relationshipFile =   os.environ['RELATIONSHIP_BCP']
 propertyFile = os.environ['PROPERTY_BCP']
 noteFile = os.environ['NOTE_BCP']
-noteChunkFile = os.environ['NOTECHUNK_BCP']
 
 # file descriptors
 fpInFile = ''
 fpRelationshipFile = ''
 fpPropertyFile = ''
 fpNoteFile = ''
-fpNoteChunkFile = ''
 
 # database primary keys, will be set to the next available from the db
 nextRelationshipKey = 1000	# MGI_Relationship._Relationship_key
@@ -207,9 +204,7 @@ def init():
     #
     # get next MGI_Note key
     #
-    results = db.sql('''select max(_Note_key) + 1 as nextKey
-        from MGI_Note''', 'auto')
-        
+    results = db.sql('''select nextval('mgi_note_seq') as nextKey''', 'auto')
     nextNoteKey = results[0]['nextKey']
 
     #
@@ -314,7 +309,7 @@ def openFiles ():
     #  creates files in the file system
 
     global fpInFile, fpRelationshipFile, fpPropertyFile
-    global fpNoteFile, fpNoteChunkFile
+    global fpNoteFil
 
     try:
         fpInFile = open(inFile, 'r')
@@ -340,13 +335,6 @@ def openFiles ():
         print('Cannot open Feature relationships Note bcp file: %s' % noteFile)
         sys.exit(1)
 
-    try:
-        fpNoteChunkFile = open(noteChunkFile, 'w')
-    except:
-        print('Cannot open Feature relationships Note Chunk bcp file: %s' % \
-            noteChunkFile)
-        sys.exit(1)
-
     return
 
 # end openFiles() -------------------------------
@@ -360,13 +348,12 @@ def closeFiles ():
     # Throws: Nothing
 
     global fpInFile, fpRelationshipFile, fpPropertyFile
-    global fpNoteFile, fpNoteChunkFile
+    global fpNoteFile
 
     fpInFile.close()
     fpRelationshipFile.close()
     fpPropertyFile.close()
     fpNoteFile.close()
-    fpNoteChunkFile.close()
 
     return
 
@@ -522,14 +509,8 @@ def createFiles( ):
 
         # MGI_Note
         if len(note) > 0:
-            fpNoteFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % \
-                (nextNoteKey, TAB, nextRelationshipKey, TAB, relationshipMgiTypeKey, TAB, relationshipNoteTypeKey, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT))
-
-            # MGI_NoteChunk
-            seqNum = 1
-            if  len(note) > 0:
-                fpNoteChunkFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s'% \
-                    (nextNoteKey, TAB, seqNum, TAB, note, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT))
+            fpNoteFile.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % \
+                (nextNoteKey, TAB, nextRelationshipKey, TAB, relationshipMgiTypeKey, TAB, relationshipNoteTypeKey, TAB, note, TAB, userKey, TAB, userKey, TAB, DATE, TAB, DATE, CRT))
 
         # MGI_Relationship_Property
         seqNum = 0
