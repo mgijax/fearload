@@ -189,17 +189,10 @@ def init():
     # get next MGI_Relationship and MGI_Relationship_Property keys
     #
     results = db.sql('''select nextval('mgi_relationship_seq') as nextKey''', 'auto')
-    if results[0]['nextKey'] is None:
-        nextRelationshipKey = 1000
-    else:
-        nextRelationshipKey = results[0]['nextKey']
+    nextRelationshipKey = results[0]['nextKey']
 
-    results = db.sql('''select max(_RelationshipProperty_key) + 1 as nextKey
-            from MGI_Relationship_Property''', 'auto')
-    if results[0]['nextKey'] is None:
-        nextPropertyKey = 1000
-    else:
-        nextPropertyKey = results[0]['nextKey']
+    results = db.sql('''select nextval('mgi_relationship_property_seq') as nextKey''', 'auto')
+    nextPropertyKey = results[0]['nextKey']
 
     #
     # get next MGI_Note key

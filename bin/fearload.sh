@@ -221,6 +221,7 @@ fi
 
 cat - <<EOSQL | ${PG_DBUTILS}/bin/doisql.csh $0 >> ${LOG_DIAG}
 select setval('mgi_relationship_seq', (select max(_Relationship_key) from MGI_Relationship));
+select setval('mgi_relationship_property_seq', (select max(_RelationshipProperty_key) from MGI_Relationship_Property));
 select setval('mgi_note_seq', (select max(_Note_key) from MGI_Note));
 EOSQL
 
