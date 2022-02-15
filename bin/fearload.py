@@ -302,7 +302,7 @@ def openFiles ():
     #  creates files in the file system
 
     global fpInFile, fpRelationshipFile, fpPropertyFile
-    global fpNoteFil
+    global fpNoteFile
 
     try:
         fpInFile = open(inFile, 'r')
