@@ -35,7 +35,6 @@
 ###########################################################################
 
 
-import string
 import sys
 
 USAGE = 'Usage: checkColumns.py  inputFile numColumns'

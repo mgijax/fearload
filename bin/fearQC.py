@@ -64,12 +64,9 @@
 
 import sys
 import os
-import string
-import re
 import mgi_utils
 import db
 import time
-import Set
 
 #
 #  CONSTANTS
@@ -149,8 +146,6 @@ relDagList = []
 badPropList = []
 badPropValueList = []
 missingPropColumnList = []
-# bad expresses component property values
-badECPropValueList = []
 
 # improperly formated organizer or participant MGI IDs
 # {badId:type, ...} where type is organizer or participant
@@ -171,15 +166,6 @@ deleteRptList = []
 
 # list of deletes not found in the database
 deleteNotInDbList = []
-
-# list of expressed component input lines duplicated in the database
-exprCompDupList = []
-
-# expresses component lookup from the database
-exprCompList = []
-
-# template for expressed component relationships in the database
-exprCompTemplate = '%s|%s|%s|%s|%s|%s|%s|%s'
 
 # for bcp
 bcpin = '%s/bin/bcpin.csh' % os.environ['PG_DBUTILS']
@@ -215,7 +201,7 @@ def checkArgs ():
 def init ():
     global categoryDict, relationshipDict
     global qualifierDict, evidenceDict, jNumDict, userDict
-    global validPropDict, passwordFile, egSymbolDict, exprCompList
+    global validPropDict, passwordFile, egSymbolDict
 
     # open input/output files
     openFiles()
@@ -319,79 +305,6 @@ def init ():
         validPropDict[r['term'].lower()] = r['_Term_key']
     #print 'validPropDict: %s' % validPropDict
 
-    # Expresses component lookup
-    # this returns 3836 on sybase and on postgres
-    db.sql('''
-        select r.*, a.accid as relID, v1.term as qual, v2.abbreviation as evid, v3.term as propName, p.value as propValue
-        into temp EC
-        from ACC_Accession a, VOC_Term v1, VOC_Term v2, MGI_Relationship r
-        LEFT OUTER JOIN MGI_Relationship_Property p on (
-            r._Relationship_key = p._Relationship_key)
-        LEFT OUTER JOIN  VOC_Term v3 on (
-            p._PropertyName_key = v3._Term_key)
-        where r._Qualifier_key = v1._Term_key
-        and r._Evidence_key = v2._Term_key
-        and r._Category_key = 1004
-        and r._RelationshipTerm_key = a._Object_key
-        and a._MGIType_key = 13
-        and a._LogicalDB_key = 171
-        and preferred = 1
-        ''', None)
-    db.sql('create index idxObjKey1 on EC(_Object_key_1)', None)
-    db.sql('create index idxObjKey2 on EC(_Object_key_2)', None)
-
-    results = db.sql('''
-        select distinct a1.accID as alleleID, a2.accID as markerID, e.relID, e.qual, e.evid, e.propName, e.propValue, e._Relationship_key
-        from EC e, ACC_Accession a1, ACC_Accession a2
-        where e._Object_key_1 = a1._Object_key
-        and a1._MGIType_key = 11
-        and a1.prefixPart = 'MGI:'
-        and a1._LogicalDB_key = 1
-        and a1.preferred = 1
-        and e._Object_key_2 = a2._Object_key
-        and a2._MGIType_key = 2
-        and a2.prefixPart = 'MGI:'
-        and a2._LogicalDB_key = 1
-        and a2.preferred = 1
-        order by _Relationship_key
-        ''', 'auto')
-    #print 'Num results: %s' % len(results)
-    resDict = {}
-
-    # organize by relationship; multi properties per relationship
-    for r in results:
-        key = r['_Relationship_key']
-        if key not in resDict:
-            resDict[key] = []
-        resDict[key].append(r)
-
-    # not create expr comp lookup list $a
-    for key in list(resDict.keys()):
-        #print key
-        alleleID = resDict[key][0]['alleleID'].lower()
-        relID =  resDict[key][0]['relID'].lower()
-        markerID = resDict[key][0]['markerID'].lower()
-        qual = resDict[key][0]['qual'].lower()
-        evid = resDict[key][0]['evid'].lower()
-        orgPropVal = ''
-        symbolPropVal = ''
-        geneIDPropVal = ''
-
-        for r in resDict[key]:
-            if r['propName'] == None:
-                continue
-            elif r['propName'] == 'Non-mouse_Organism':
-                orgPropVal =  r['propValue'].lower()
-            elif r['propName'] == 'Non-mouse_Gene_Symbol':
-                symbolPropVal =  r['propValue']
-            elif r['propName'] == 'Non-mouse_NCBI_Gene_ID':
-                geneIDPropVal =  r['propValue']
-            else:
-                print('unrecognized property name')
-
-        exprCompList.append(exprCompTemplate % (alleleID, relID, markerID, qual, evid, orgPropVal, symbolPropVal, geneIDPropVal))
-    #print exprCompList
-
     #
     # load temp table from input file for MGI ID verification
     # 
@@ -452,8 +365,7 @@ def loadTempTableLookups():
                 a1._Object_key as _Marker_key_1, m1.symbol as symbol1, 
                 tmp.mgiID2, a2._Object_key as _Marker_key_2, 
                 m2.symbol as symbol2
-            from %s tmp, ACC_Accession a1, ACC_Accession a2,
-                MRK_Marker m1, MRK_Marker m2
+            from %s tmp, ACC_Accession a1, ACC_Accession a2, MRK_Marker m1, MRK_Marker m2
             where tmp.mgiID1TypeKey = 2
             and tmp.mgiID2TypeKey = 2
             and tmp.mgiID1 = a1.numericPart
@@ -577,8 +489,7 @@ def qcOrgAllelePartMarker():
                 where a.numericPart = tmp.mgiID1
                 and a.prefixPart = 'MGI:')
                 order by tmp.mgiID1''' % idTempTable
-    print('running sql for results1a %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
-        time.localtime(time.time())))
+    print('running sql for results1a %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time())))
     sys.stdout.flush()
     results1a = db.sql(cmds, 'auto')
 
@@ -600,8 +511,7 @@ def qcOrgAllelePartMarker():
                         and a2._LogicalDB_key = 1
                         and a2._MGIType_key = 11)
                 order by tmp.mgiID1''' % idTempTable
-    print('running sql for results1b %s' % time.strftime("%H.%M.%S.%m.%d.%y", \
-        time.localtime(time.time())))
+    print('running sql for results1b %s' % time.strftime("%H.%M.%S.%m.%d.%y", time.localtime(time.time())))
     sys.stdout.flush()
     results1b = db.sql(cmds, 'auto')
 
@@ -757,9 +667,7 @@ def qcOrgAllelePartMarker():
     # check does not apply
     cmds = '''select distinct tmp.mgiID1 as org, tmp.mgiID2 as part, 
                 tmp.category, mo.chromosome as oChr, mp.chromosome as pChr
-                from nonExpComp tmp,
-                ALL_Allele a, MRK_Marker mo, MRK_Marker mp, ACC_Accession ao, 
-                    ACC_Accession ap
+                from nonExpComp tmp, ALL_Allele a, MRK_Marker mo, MRK_Marker mp, ACC_Accession ao, ACC_Accession ap
                 where tmp.mgiID1TypeKey = 11
                 and tmp.mgiID2TypeKey = 2
                 and tmp.mgiID1 > 0
@@ -907,20 +815,7 @@ def qcOrgAllelePartMarker():
         for r in results5:
             oChr =  r['oChr']
             pChr = r['pChr']
-            category = r['category']
-
-            # special chromosome matching for mutation_involves
-            if category == 'mutation_involves':
-                if (oChr == 'X' and pChr == 'XY') or (oChr == 'Y' and pChr == 'XY') or (oChr == 'XY' and pChr == 'X') or (oChr == 'XY' and pChr == 'Y'):
-                    fpWarnRpt.write('WARNING: Allele: MGI:%s chr: %s Marker: MGI:%s chr: %s%s' % (r['org'], oChr, r['part'], pChr, CRT))
-                    hasWarnErrors = 1
-                    continue
-                else:
-                    rptList.append('%-20s  %-20s  %-20s  %-20s' % ('MGI:%s' % r['org'], oChr, 'MGI:%s' % r['part'], pChr))
-
-            # not mutation_involves - report
-            else:
-                rptList.append('%-20s  %-20s  %-20s  %-20s' % ('MGI:%s' % r['org'], oChr, 'MGI:%s' % r['part'], pChr))
+            rptList.append('%-20s  %-20s  %-20s  %-20s' % ('MGI:%s' % r['org'], oChr, 'MGI:%s' % r['part'], pChr))
 
         if len(rptList):
             # report Chromosome mismatch between Organizer and Participant
@@ -1419,7 +1314,7 @@ def runQcChecks ():
     global evidenceList, jNumList, userList, relIdList, obsRelIdList
     global relVocabList, relDagList, badPropList, badPropValueList
     global missingPropColumnList
-    global badECPropValueList, exprCompDupList, lineCt
+    global lineCt
 
     #
     # Expected columns; those not listed are for curator use
@@ -1499,7 +1394,6 @@ def runQcChecks ():
         if cat not in categoryDict:
             hasFatalErrors = 1
             categoryList.append('%-12s  %-20s' % (lineCt, cat))
-
             # if we don't know the category, we can't do all the QC checks
             # so continue to next line
             line = fpInput.readline()
@@ -1564,94 +1458,18 @@ def runQcChecks ():
         if action == 'add':
             # we will use this dict to compare the symbol in the file
             # to the symbol for the gene ID in the the database
-            # if cat == 'expresses_component' and relId == 'rv:0000211':
             geneSymbol = ''
             egID = ''
             hasWarnErrors = 0
-
-            # strictly for expresses component dup checking
-            orgPropVal = ''
-            symbolPropVal = ''
-            geneIDPropVal = ''
 
             for i in list(propIndexDict.keys()):
                 # check for data in each property column
                 propertyValue = remainingTokens[i]
                 propertyName = propIndexDict[i][0]
 
-                # strictly for expressed component dup checking
-                if propertyName == 'non-mouse_organism':
-                    orgPropVal = propertyValue.lower()
-                elif propertyName == 'non-mouse_gene_symbol':
-                    symbolPropVal = propertyValue
-                elif propertyName == 'non-mouse_ncbi_gene_id':
-                    geneIDPropVal = propertyValue
-                #print '%s %s %s' % (orgPropVal, symbolPropVal, geneIDPropVal)
-
                 if propertyValue != '':
                     propIndexDict[i][1] = True
-                #
-                # Property checks for category expresses component
-                #
 
-                # If relationship term = "expresses_an_orthologous gene" 
-                # RV:0000211 then the properties Non-mouse_Organism and 
-                # Non-mouse_Gene_Symbol are required to have a value 
-                # (any text value).
-                # if the property is non-mouse_ncbi_gene_id report warning if
-                # 1) there is no value
-                # 2) the value is not in the database
-                # 3) the gene symbol associated with the value in the file not 
-                #    same as the gene symbol in the database (case sensitive)
-                if cat == 'expresses_component' and relId == 'rv:0000211':
-                    if propertyName == 'non-mouse_organism' and propertyValue == '':
-                        hasFatalErrors = 1
-                        reason = '"expresses_an_orthologous_gene" relationship with no "Non-mouse_Organism" property value'
-                        toReport = '%-12s   %-68s ' % (lineCt, reason)
-                        #if toReport not in badECPropValueList:
-                        badECPropValueList.append(toReport)
-                    elif propertyName == 'non-mouse_gene_symbol' and propertyValue == '':
-                        hasFatalErrors = 1
-                        reason = '"expresses_an_orthologous_gene" relationship with no "Non-mouse_Gene_Symbol" property value'
-                        toReport = '%-12s   %-68s ' % (lineCt, reason)
-                        #if toReport not in badECPropValueList:
-                        badECPropValueList.append(toReport)
-                    elif propertyName == 'non-mouse_ncbi_gene_id' and propertyValue == '':
-                        reason = 'Relationship term is "expresses_an_orthologous_gene" and "Non-mouse_NCBI_Gene_ID" not present.'
-                        fpWarnRpt.write('%-5s    %-75s%s' % (lineCt, reason, CRT))
-                        hasWarnErrors = 1
-                    elif  propertyName == 'non-mouse_ncbi_gene_id':
-                        egID = propertyValue
-                    elif propertyName == 'non-mouse_gene_symbol':
-                        geneSymbol = propertyValue
-                    #print 'egID: %s geneSymbol: %s' % (egID, geneSymbol)
-                # If relationship term = "expresses_mouse gene"
-                # RV:0000210 then the properties Non-mouse_Organism and
-                # Non-mouse_Gene_Symbol and Non-mouse_NCBI_Gene_ID
-                # should have no value
-                # (any text value).
-                elif cat == 'expresses_component' and relId == 'rv:0000210':
-                    if  propertyName == 'non-mouse_organism' and propertyValue != '':
-                        hasFatalErrors = 1
-                        reason = '"expresses_mouse_gene" relationship with a "Non-mouse_Organism" property value'
-                        toReport = '%-12s   %-68s ' % (lineCt, reason)
-                        #if toReport not in badECPropValueList:
-                        badECPropValueList.append(toReport)
-                        #print reason
-                    elif  propertyName == 'non-mouse_gene_symbol' and propertyValue != '':
-                        hasFatalErrors = 1
-                        reason = '"expresses_mouse_gene" relationship with a "Non-mouse_Gene_Symbol" property value'
-                        toReport = '%-12s   %-68s ' % (lineCt, reason)
-                        #if toReport not in badECPropValueList:
-                        badECPropValueList.append(toReport)
-                        #print reason
-                    elif propertyName == 'non-mouse_ncbi_gene_id' and propertyValue != '':
-                        hasFatalErrors = 1
-                        reason = '"expresses_mouse_gene" relationship with a "Non-mouse_NCBI_Gene_ID" property value'
-                        toReport = '%-12s   %-68s ' % (lineCt, reason)
-                        #if toReport not in badECPropValueList:
-                        badECPropValueList.append(toReport)
-                        #print reason
                 # QC the 'score' property
                 if propertyName == 'score' and propertyValue != '':
                     #print 'property is score, value is %s' % propertyValue
@@ -1666,36 +1484,6 @@ def runQcChecks ():
                         #print 'invalid score: %s' % propertyValue
                         hasFatalErrors = 1
                         badPropValueList.append('%-12s   %-20s  %-20s' % (lineCt, propertyName, propertyValue))
-
-            # After we've checked all properties, if 
-            # the category is expresses_component and
-            # the relID is rv:0000211 and
-            # we don't have a fatal or warning error check 
-            # check the geneSymbol in the file against the gene symbol 
-            # for the egID in the database (case insensitive)
-            if cat == 'expresses_component' and relId == 'rv:0000211' and egID != '' and not hasFatalErrors and not hasWarnErrors:
-                if egID not in egSymbolDict:
-                    reason = 'Non-mouse_NCBI_Gene_ID: %s not in MGI ' % egID  + 'accession table'
-                    fpWarnRpt.write('%-5s    %-75s%s' % (lineCt, reason, CRT))
-                    #print reason
-                else:
-                    dbSymbol = egSymbolDict[egID]
-                    if geneSymbol != dbSymbol:
-                        reason = 'Non-mouse_NCBI_Gene_ID: %s associated symbol: %s not equal to the non-mouse gene symbol in file: %s' % (egID, dbSymbol, geneSymbol)
-                        #print reason
-                        fpWarnRpt.write('%-5s    %-75s%s' % (lineCt, reason, CRT))
-
-
-            # after we've checked all properties, 
-            # if expresses component -  check for dups in the database for 
-            # expresses component HDP-2 US186
-            if cat == 'expresses_component':
-                key = exprCompTemplate % (obj1Id, relId, obj2Id, qual, evid, orgPropVal, symbolPropVal, geneIDPropVal)
-                if key in exprCompList:
-                    hasFatalErrors = 1
-                    reason = line
-                    toReport = '%-12s   %-68s ' % (lineCt, reason)
-                    exprCompDupList.append(toReport)
 
         line = fpInput.readline()
         lineCt += 1
@@ -1806,24 +1594,12 @@ def writeReport():
         fpQcRpt.write(12*'-' + '  ' + 20*'-' + CRT)
         fpQcRpt.write(CRT.join(missingPropColumnList))
 
-    if len(badECPropValueList):
-        fpQcRpt.write(CRT + CRT + str.center('Invalid Expresses Component Property Values',60)+ CRT)
-        fpQcRpt.write('%-12s  %-68s %s' % ('Line#','Reason', CRT))
-        fpQcRpt.write(12*'-' + '  ' + 68*'-' + CRT)
-        fpQcRpt.write(CRT.join(badECPropValueList))
-
     if len(deleteNotInDbList):
         hasFatalErrors = 1
         fpQcRpt.write(CRT + CRT + str.center('Deletes not in Database',60)+ CRT)
         fpQcRpt.write('%-12s  %-68s %s' % ('Line#','Line', CRT))
         fpQcRpt.write(12*'-' + '  ' + 68*'-' + CRT)
         fpQcRpt.write(CRT.join( deleteNotInDbList))
-
-    if len(exprCompDupList):
-        fpQcRpt.write(CRT + CRT + str.center('Expressed Component lines Duplicated in the Database',60)+ CRT)
-        fpQcRpt.write('%-12s  %-68s %s' % ('Line#','Line', CRT))
-        fpQcRpt.write(12*'-' + '  ' + 68*'-' + CRT)
-        fpQcRpt.write(CRT.join( exprCompDupList))
 
     # if no fatal errors found write all deletes to informational delete report
     if len(deleteRptList) and not hasFatalErrors:
@@ -1960,7 +1736,6 @@ def loadTempTables ():
     #
     #print 'Load the relationship data into the temp table: %s' % idTempTable
     sys.stdout.flush()
-## NEW
     bcpCmd = '%s %s %s %s ./ %s "\\t" "\\n" mgd' % (bcpin, server, database, idTempTable, idBcpFile)
 
     #print 'bcpCmd: %s' % bcpCmd
