@@ -230,7 +230,7 @@ def init ():
         and a.private = 0
         and a._Object_key = t._Term_key
         and t._Term_key = dn._Object_key
-        and dn._DAG_key in (44,45,46,47,56)
+        and dn._DAG_key in (44,45,46,47,54)
         and dn._DAG_key = vd._DAG_Key
         ''', 'auto')
     for r in results:
