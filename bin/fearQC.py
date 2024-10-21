@@ -230,7 +230,7 @@ def init ():
         and a.private = 0
         and a._Object_key = t._Term_key
         and t._Term_key = dn._Object_key
-        and dn._DAG_key between 44 and 47
+        and dn._DAG_key in (44,45,46,47,56)
         and dn._DAG_key = vd._DAG_Key
         ''', 'auto')
     for r in results:
@@ -1446,6 +1446,7 @@ def runQcChecks ():
                 relVocabList.append('%-12s  %-20s' % (lineCt, relId))
 
             # is the relationship DAG different than the category DAG?
+            print(relId, relDict['_DAG_key'], cDict['_RelationshipDAG_key'])
             if relDict['_DAG_key'] != cDict['_RelationshipDAG_key']:
                 hasFatalErrors = 1
                 relDagList.append('%-12s  %-20s' % (lineCt, relId))
