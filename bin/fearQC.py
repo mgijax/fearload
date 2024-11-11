@@ -1269,6 +1269,7 @@ def processDelete(cDict, relDict, cat, obj1Id, obj2Id, relId, qual, evid, jNum, 
                 #print 'note: %s' % note
                 if note != None:
                     note = str.strip(note)
+                    note = str.replace('"','')
                     if note not in noteList:
                         #print 'appending note: "%s"' % note
                         noteList.append(str.strip(note))

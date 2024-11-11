@@ -402,7 +402,7 @@ def createFiles( ):
         remainingColumns = list(map(str.strip, str.split(line, TAB)))[12:]
 
         # get notes column
-        note = remainingColumns[0]
+        note = remainingColumns[0].replace('"','')
 
         # get properties columns
         remainingColumns = remainingColumns[1:]
