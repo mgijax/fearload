@@ -1,3 +1,11 @@
+TAG: fearload-6-0-24-?
+DATE: 11/11/2024
+STAFF: lec
+CHANGES:
+remove quotes from notes
+fearload.py
+fearQC.py
+
 TAG: fearload-6-0-24-2
 TAG: fearload-6-0-24-1
 DATE: 10/21/2024
